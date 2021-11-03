@@ -48,7 +48,7 @@ def across_chr_obj_fun(x,dfArrList):
     
     return(obFun)
 
-def HeRho_estimate_genome(pooledChrs):
+def heRho_estimate_genome(pooledChrs):
     
     numberChromosomes = len(pooledChrs)
 
@@ -68,7 +68,7 @@ def HeRho_estimate_genome(pooledChrs):
     return(res)
 
 
-def HeRho_format_and_print(coEstimates,chrNames):
+def heRho_format_and_print(coEstimates,chrNames):
     numChrs = len(chrNames)
     kappas = coEstimates[0:numChrs]
     gammas = coEstimates[numChrs:numChrs*2]
@@ -90,8 +90,8 @@ if __name__=="__main__":
 
 	pooledDataByChr = [combine_chr_across_individuals( df.loc[(df["chromosome"]==cName)] ) for cName in chrNames]
 
-	rhoCoEstimates = HeRho_estimate_genome(pooledDataByChr)
+	rhoCoEstimates = heRho_estimate_genome(pooledDataByChr)
 
-	HeRho_format_and_print(rhoCoEstimates,chrNames)
+	heRho_format_and_print(rhoCoEstimates,chrNames)
 
 	exit()
