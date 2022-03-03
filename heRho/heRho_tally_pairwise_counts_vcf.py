@@ -70,6 +70,7 @@ class DataObj(object):
 
     def load_bed(self):
         # could include a way to label bed regions, should track chromosome
+        # make sure bed regions are referring to vcf regions properly
         self.bed_intervals = pybedtools.BedTool(self.bed_f)
 
     def sample_variant_bed_intersect(self, bed_intervals=None):
@@ -94,7 +95,7 @@ class DataObj(object):
         columns = ["interval", "distance", "H0", "H1", "H2", "theta", "sample"]
         all_sample_count_df = pd.DataFrame(columns=columns).fillna(0)
         for sample in self.read_groups:
-            sample_df = self.sample_obj_dict[sample].concat_dfs
+            sample_df = self.sample_obj_dict[sample].concat_dfs()
             df_length = sample_df.shape[0]
             sample_list = [sample] * df_length
             sample_df["sample"] = sample_list
