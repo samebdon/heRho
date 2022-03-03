@@ -138,6 +138,7 @@ class SampleObj(object):
         )
 
     def concat_dfs(self):
+        print(self.state_count_df_dict.keys())
         concat_state_count_df = self.state_count_df_dict[0]
         for interval_index in self.state_count_df_dict.keys():
             if interval_index == 0:
@@ -226,7 +227,7 @@ def count_distance(pos, max_distance=1000):
 
 
 vcf_f = "dev_data/iphiclides_podalirius.IP_504.chromosome_5.vcf.gz"
-bed_f = "dev_data/iphiclides_podalirius.v2_0.chromosomes.callable.bed"
+bed_f = "dev_data/iphiclides_podalirius.v2_0.chromosomes.braker.gt.exon.bed"
 max_pair_distance = 2000
 data = DataObj(vcf_f=vcf_f, bed_f=bed_f)
 data.parse_vcf()
