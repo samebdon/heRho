@@ -22,12 +22,20 @@ import collections
 import os
 import glob
 import shutil
+import pybedtools
+import allel
 from tqdm import tqdm
 from docopt import docopt
 from pathlib import Path
-
 from collections import Counter
 
+#To do
+#Write function that reads a vcf file and creates a list of heterozygous positions for each read group
+#Write function to convert these to bed intervals given a bed file
+#Amend wrapper to work with these replicates
+#Maybe make it as a class, and use scikit allel and bed toolkit to create the right parts of it
+#so can load each file type into the class and then run each individual for it
+#either make a class for the whole analysis, a class per individual, or both? would make sense to make an individual object at least
 
 def state_counts(replicates):
 	#Count h0, h1, and h2 given a window of known length and the positions of known variant sites
