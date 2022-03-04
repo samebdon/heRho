@@ -79,7 +79,6 @@ class GenomeObj(object):
             "theta",
         ]
         self.genome_df = pd.DataFrame(columns=columns).fillna(0)
-        # can parallelise over chromosomes here i think
 
         replicates = self.chrom_obj_dict.keys()
         with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
