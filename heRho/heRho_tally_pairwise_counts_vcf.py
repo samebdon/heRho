@@ -33,6 +33,8 @@ from collections import Counter
 # To do
 # Provided sample/chromosome list tests
 # Figure out loading information with multiprocessing
+# Check for intron overlaps
+# Pick some introns and check the tally is working correctly
 
 class GenomeObj(object):
     def __init__(
@@ -105,7 +107,7 @@ class GenomeObj(object):
             max_pair_distance=max_pair_distance,
         )
         chrom_df = self.chrom_obj_dict[chromosome].concat_tsv()
-        print("Finished tallying %s." % chromosome)
+        print("Finished tallying '%s'." % chromosome)
         return chrom_df
 
     def write_tsv(self):
@@ -387,10 +389,8 @@ def count_distance(pos, max_distance=1000):
                     # counter[product] += 1
     return counter
 
-
 def filter_bed_generator(bed_intervals=None, chromosome_name=None):
     return bed_intervals.filter(lambda b: b.chrom == chromosome_name)
-
 
 if __name__ == "__main__":
 
