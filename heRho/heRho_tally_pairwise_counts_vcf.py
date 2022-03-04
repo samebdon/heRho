@@ -2,7 +2,7 @@
 Function as is for talling output from heRHo_variant_simulator.py
 
 Usage: 
- heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR>]
+ heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
 
 Options:
  -v, --vcf <FILE>                       VCF file
@@ -11,6 +11,7 @@ Options:
  -t, --threads <INT>                    Thread limit (parallelised per chromosome, 1 by default)
  -s, --samples <STR>                    Comma separated list of samples to analyse (all by default)
  -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (all by default)
+ -f, --file_prefix <STR>                Optional file prefix
 """
 
 # Example Command
@@ -30,8 +31,8 @@ from docopt import docopt
 from collections import Counter
 
 # To do
-# Provided sample list tests
-# add output file option/prefix
+# Provided sample/chromosome list tests
+# Figure out loading information with multiprocessing
 
 class GenomeObj(object):
     def __init__(
@@ -53,7 +54,7 @@ class GenomeObj(object):
         self.all_bed_intervals = pybedtools.BedTool(self.bed_f)
 
     def initialise_chromosome_objs(self):
-        print("Loading chromosomes...")
+        print("Loading chromosomes from VCF file...")
         vcf_dict = allel.read_vcf(self.vcf_f, fields=["variants/CHROM"])
         # write test to check if each entry in chromosome_list is in variants/CHROM
         if chromosome_list:
@@ -67,6 +68,7 @@ class GenomeObj(object):
             )
 
     def tally_chroms(self):
+        print("Tallying chromosomes...")
         columns = [
             "sample",
             "interval_index",
@@ -80,6 +82,7 @@ class GenomeObj(object):
         ]
         self.genome_df = pd.DataFrame(columns=columns).fillna(0)
 
+        #loading bars and print statements within concurrent futures dont work properly
         replicates = self.chrom_obj_dict.keys()
         with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
             results = executor.map(self.tally_chroms_worker, replicates)
@@ -102,11 +105,17 @@ class GenomeObj(object):
             max_pair_distance=max_pair_distance,
         )
         chrom_df = self.chrom_obj_dict[chromosome].concat_tsv()
+        print("Finished tallying %s." % chromosome)
         return chrom_df
 
     def write_tsv(self):
-        self.genome_df.to_csv("heRho_pairwise_variant_tally.tsv", sep="\t", index=False)
-        print("Written output to 'heRho_pairwise_variant_tally.tsv'.")
+        if prefix:
+            output_file_name = prefix + ".heRho_pairwise_variant_tally.tsv"
+        else:
+            output_file_name = "heRho_pairwise_variant_tally.tsv"
+
+        self.genome_df.to_csv(output_file_name, sep="\t", index=False)
+        print("Written output to '%s'." % output_file_name)
 
 
 class ChromObj(object):
@@ -127,7 +136,8 @@ class ChromObj(object):
         self.snps_in_bed_array = snps_in_bed_array
 
     def parse_vcf(self):
-        print("Parsing variants...")
+        if threads == 1:
+            print("Parsing variants from VCF file...")
         query_fields = [
             "samples",
             "calldata/GT",
@@ -144,8 +154,6 @@ class ChromObj(object):
             self.read_groups = np.array(sample_list)
         else:
             self.read_groups = vcf_dict["samples"]
-        print(self.read_groups)
-        print(type(self.read_groups))
         numalt_array = vcf_dict["variants/NUMALT"]
         is_SNP_array = vcf_dict["variants/is_snp"]
         mask_array = (numalt_array == 1) & (is_SNP_array == True)
@@ -167,8 +175,9 @@ class ChromObj(object):
 
     def sample_variant_bed_intersect(self, all_bed_intervals=None):
         sample_obj_dict = {}
-        print("Intersecting variants with bed per sample...")
-        for sample in tqdm(self.read_groups, total=len(self.read_groups)):
+        if threads == 1:
+            print("Intersecting variants with bed per sample...")
+        for sample in self.read_groups:
             chr_bed_intervals = filter_bed_generator(
                 bed_intervals=all_bed_intervals, chromosome_name=self.chromosome_name
             )
@@ -178,15 +187,14 @@ class ChromObj(object):
 
     def sample_count_states(self, all_bed_intervals=None, max_pair_distance=1000):
         for sample in self.read_groups:
-            print("Tallying states in sample: %s" % sample)
+            if threads == 1:
+                print("Tallying states in sample: %s" % sample)
             if self.n_intervals:
                 chr_bed_intervals = filter_bed_generator(
                     bed_intervals=all_bed_intervals,
                     chromosome_name=self.chromosome_name,
                 )
-                for interval_index, interval in tqdm(
-                    enumerate(chr_bed_intervals), total=self.n_intervals
-                ):
+                for interval_index, interval in enumerate(chr_bed_intervals):
                     if interval.end - interval.start < max_pair_distance:
                         continue
                     self.sample_obj_dict[sample].count_states(
@@ -203,7 +211,8 @@ class ChromObj(object):
 
     def concat_tsv(self):
 
-        print("Concatenating dataframes...")
+        if threads == 1:
+            print("Concatenating dataframes...")
         columns = [
             "interval_index",
             "name",
@@ -215,7 +224,7 @@ class ChromObj(object):
             "theta",
         ]
         all_sample_count_df = pd.DataFrame(columns=columns).fillna(0)
-        for sample in tqdm(self.read_groups, total=len(self.read_groups)):
+        for sample in self.read_groups:
             sample_df = self.sample_obj_dict[sample].concat_dfs()
             df_length = sample_df.shape[0]
             sample_list = [sample] * df_length
@@ -405,14 +414,23 @@ if __name__ == "__main__":
         threads = 1
 
     if args["--samples"]:
-        sample_list = str(args["--samples"]).split(",")
+        sample_list = str(args["--samples"]).replace(" ", "").split(",")
+        print("Analysing samples: ",','.join(sample_list))
     else:
+        print("Analysing all samples...")
         sample_list = None
 
     if args["--chromosomes"]:
-        chromosome_list = str(args["--chromosomes"]).split(",")
+        chromosome_list = str(args["--chromosomes"]).replace(" ", "").split(",")
+        print("Analysing chromosomes: ",','.join(chromosome_list))
     else:
+        print("Analysing all chromosomes...")
         chromosome_list = None
+
+    if args["--file_prefix"]:
+        prefix = str(args["--file_prefix"])
+    else:
+        prefix = None
 
     try:
         start_time = timer()
