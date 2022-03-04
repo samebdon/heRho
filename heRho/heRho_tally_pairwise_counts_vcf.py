@@ -31,7 +31,7 @@ from collections import Counter
 
 # To do
 # Provided sample list tests
-
+# add output file option/prefix
 
 class GenomeObj(object):
     def __init__(
@@ -105,8 +105,8 @@ class GenomeObj(object):
         return chrom_df
 
     def write_tsv(self):
-        self.genome_df.to_csv("heRho_tally_multithreaded.tsv", sep="\t", index=False)
-        print("Written output to 'heRho_tally.tsv'.")
+        self.genome_df.to_csv("heRho_pairwise_variant_tally.tsv", sep="\t", index=False)
+        print("Written output to 'heRho_pairwise_variant_tally.tsv'.")
 
 
 class ChromObj(object):
