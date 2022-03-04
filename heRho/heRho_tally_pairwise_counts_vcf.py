@@ -267,7 +267,7 @@ class SampleObj(object):
                 hzg_sites=self.bed_variant_dict[interval_index],
                 interval_index=interval_index,
                 interval_name=interval.name,
-                interval_length=interval.end,
+                interval_length=interval.end-interval.start, #check off by 1 
                 chromosome=interval.chrom,
                 max_pair_distance=max_pair_distance,
             )
@@ -415,14 +415,14 @@ if __name__ == "__main__":
 
     if args["--samples"]:
         sample_list = str(args["--samples"]).replace(" ", "").split(",")
-        print("Analysing samples: ",','.join(sample_list))
+        print("Analysing samples: ",', '.join(sample_list))
     else:
         print("Analysing all samples...")
         sample_list = None
 
     if args["--chromosomes"]:
         chromosome_list = str(args["--chromosomes"]).replace(" ", "").split(",")
-        print("Analysing chromosomes: ",','.join(chromosome_list))
+        print("Analysing chromosomes: ",', '.join(chromosome_list))
     else:
         print("Analysing all chromosomes...")
         chromosome_list = None
