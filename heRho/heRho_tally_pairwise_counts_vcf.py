@@ -25,27 +25,82 @@ from timeit import default_timer as timer
 from docopt import docopt
 from collections import Counter
 
-#
-# CURRENTLY ASSUMES VCF AND BED OF ONE CHROMOSOME/CONTIG
-#
 # To do
-# Need to account for chromosome, could make dict of var per chromosome (see allel chromposindex and locaterange)
+# Add option to only include a subset of readgroups
+# Add option to only analyse a specific chromosome
+# Parallelise across chromosomes
 
-class DataObj(object):
+class GenomeObj(object):
     def __init__(
         self,
         vcf_f=None,
         bed_f=None,
-        read_groups=[],
-        sample_obj_dict={},
-        bed_intervals=None,
-        snps_in_bed_array=None,
+        all_bed_intervals=None,
+        chrom_obj_dict = {},
+        genome_df = None,
     ):
         self.vcf_f = vcf_f
         self.bed_f = bed_f
+        self.all_bed_intervals = all_bed_intervals
+        self.chrom_obj_dict = chrom_obj_dict
+        self.genome_df = genome_df
+
+    def load_bed(self):
+        print("Loading bed file...")
+        self.all_bed_intervals = pybedtools.BedTool(self.bed_f)
+
+    def initialise_chromosome_objs(self):
+        print("Loading chromosomes...")
+        vcf_dict = allel.read_vcf(self.vcf_f, fields=["variants/CHROM"])
+        chromosome_names = np.unique(vcf_dict["variants/CHROM"])
+        self.chrom_obj_dict = {}
+        for chromosome in chromosome_names:
+            self.chrom_obj_dict[chromosome] = ChromObj(chromosome_name=chromosome, vcf_f=self.vcf_f)
+
+    def tally_chroms(self):
+        columns = [
+            "sample",
+            "interval_index",
+            "name",
+            "chromosome",
+            "distance",
+            "H0",
+            "H1",
+            "H2",
+            "theta",
+        ]
+        self.genome_df = pd.DataFrame(columns=columns).fillna(0)
+        #can parallelise over chromosomes here i think
+        for chromosome in self.chrom_obj_dict.keys():
+            print("Tallying chromosome '%s'..." % chromosome)
+
+            self.chrom_obj_dict[chromosome].parse_vcf()
+            if bed_f:
+                self.chrom_obj_dict[chromosome].get_n_chr_bed_intervals(all_bed_intervals=self.all_bed_intervals)
+                self.chrom_obj_dict[chromosome].sample_variant_bed_intersect(all_bed_intervals=self.all_bed_intervals)
+            self.chrom_obj_dict[chromosome].sample_count_states(all_bed_intervals=self.all_bed_intervals, max_pair_distance=max_pair_distance)
+            chrom_df = self.chrom_obj_dict[chromosome].concat_tsv()
+            self.genome_df = pd.concat([self.genome_df, chrom_df])
+
+    def write_tsv(self):
+        self.genome_df.to_csv("heRho_tally.tsv", sep="\t", index=False)
+        print("Written output to 'heRho_tally.tsv'.")
+
+class ChromObj(object):
+    def __init__(
+        self,
+        chromosome_name=None,
+        vcf_f=None,
+        n_intervals=None,
+        read_groups=[],
+        sample_obj_dict={},
+        snps_in_bed_array=None,
+    ):
+        self.chromosome_name = chromosome_name
+        self.vcf_f = vcf_f
+        self.n_intervals = n_intervals
         self.read_groups = read_groups
         self.sample_obj_dict = sample_obj_dict
-        self.bed_intervals = bed_intervals
         self.snps_in_bed_array = snps_in_bed_array
 
     def parse_vcf(self):
@@ -58,16 +113,13 @@ class DataObj(object):
             "variants/NUMALT",
             "variants/is_snp",
         ]
-        vcf_dict = allel.read_vcf(self.vcf_f, fields=query_fields)
+        vcf_dict = allel.read_vcf(self.vcf_f, fields=query_fields, region=self.chromosome_name)
         self.read_groups = vcf_dict["samples"]
         numalt_array = vcf_dict["variants/NUMALT"]
         is_SNP_array = vcf_dict["variants/is_snp"]
         mask_array = (numalt_array == 1) & (is_SNP_array == True)
         snp_gts = vcf_dict["calldata/GT"][mask_array]
         snp_pos = vcf_dict["variants/POS"][mask_array]
-        #snp_chrom = vcf_dict["variants/CHROM"][mask_array]
-        #chrom_snp_idx = allel.ChromPosIndex(snp_chrom, snp_pos)
-        #print(chrom_snp_idx.locate_key('iphiclides_podalirius.IP_504.chromosome_5'))
         last_snp = snp_pos[-1]
         snp_ga = allel.GenotypeArray(snp_gts)
         for sample_index, sample in enumerate(self.read_groups):
@@ -75,26 +127,25 @@ class DataObj(object):
                 snp_array=snp_pos[snp_ga.is_het()[:, sample_index]]
             )
 
-    def load_bed(self):
-        # make sure bed regions are referring to vcf regions properly
-        if bed_f:
-            self.bed_intervals = pybedtools.BedTool(self.bed_f)
+    def get_n_chr_bed_intervals(self, all_bed_intervals=None):
+        self.n_intervals = len(filter_bed_generator(bed_intervals=all_bed_intervals, chromosome_name=self.chromosome_name))
 
-    def sample_variant_bed_intersect(self, bed_intervals=None):
-        if bed_f:
-            sample_obj_dict = {}
-            print("Intersecting variants with bed per sample...")
-            for sample in tqdm(self.read_groups, total=len(self.read_groups)):
-                self.sample_obj_dict[sample].variant_bed_intersect(
-                    bed_intervals=self.bed_intervals
-                )
+    def sample_variant_bed_intersect(self, all_bed_intervals=None):
+        sample_obj_dict = {}
+        print("Intersecting variants with bed per sample...")
+        for sample in tqdm(self.read_groups, total=len(self.read_groups)):
+            chr_bed_intervals = filter_bed_generator(bed_intervals=all_bed_intervals, chromosome_name=self.chromosome_name)
+            self.sample_obj_dict[sample].variant_bed_intersect(
+                bed_intervals=chr_bed_intervals
+            )
 
-    def sample_count_states(self, max_pair_distance=1000):
+    def sample_count_states(self, all_bed_intervals=None,max_pair_distance=1000):
         for sample in self.read_groups:
             print("Tallying states in sample: %s" % sample)
-            if bed_f:
+            if self.n_intervals:
+                chr_bed_intervals = filter_bed_generator(bed_intervals=all_bed_intervals, chromosome_name=self.chromosome_name)
                 for interval_index, interval in tqdm(
-                    enumerate(self.bed_intervals), total=len(self.bed_intervals)
+                    enumerate(chr_bed_intervals), total=self.n_intervals
                 ):
                     if interval.end - interval.start < max_pair_distance:
                         continue
@@ -107,11 +158,12 @@ class DataObj(object):
             else:
                 self.sample_obj_dict[sample].count_states(
                     max_pair_distance=max_pair_distance,
+                    chromosome_name=self.chromosome_name
                     )
 
-    def write_tsv(self):
+    def concat_tsv(self):
 
-        print("Writing tsv...")
+        print("Concatenating dataframes...")
         columns = [
             "interval_index",
             "name",
@@ -130,8 +182,8 @@ class DataObj(object):
             sample_df["sample"] = sample_list
             all_sample_count_df = pd.concat([all_sample_count_df, sample_df])
 
-        all_sample_count_df.to_csv("heRho_tally.tsv", sep="\t", index=False)
-
+        return all_sample_count_df
+        
 
 class SampleObj(object):
     def __init__(
@@ -154,7 +206,7 @@ class SampleObj(object):
             interval_var_pos = self.snp_array[mask_array]
             self.bed_variant_dict[interval_index] = interval_var_pos
 
-    def count_states(self, interval_index=None, interval=None, max_pair_distance=1000):
+    def count_states(self, interval_index=None, interval=None, max_pair_distance=1000, chromosome_name=None):
         if interval:
             self.state_count_df_dict[interval_index] = state_counts(
                 hzg_sites=self.bed_variant_dict[interval_index],
@@ -168,6 +220,7 @@ class SampleObj(object):
             self.state_count_df_dict[0] = state_counts(
                 hzg_sites=self.snp_array,
                 interval_length=self.snp_array[-1],
+                chromosome=chromosome_name,
                 max_pair_distance=max_pair_distance,
             )
 
@@ -196,7 +249,7 @@ def state_counts(
     interval_index=0,
     interval_name="all_variants",
     interval_length=None,
-    chromosome="all_variants",
+    chromosome=None,
     max_pair_distance=1000,
 ):
     # Count h0, h1, and h2 given a window of known length and the positions of known variant sites
@@ -280,6 +333,11 @@ def count_distance(pos, max_distance=1000):
                     # counter[product] += 1
     return counter
 
+def get_bed_length(bed_intervals):
+    return sum([(bed_interval.end - bed_interval.start) for bed_interval in bed_intervals])
+
+def filter_bed_generator(bed_intervals=None, chromosome_name=None):
+    return bed_intervals.filter(lambda b: b.chrom == chromosome_name)
 
 if __name__ == "__main__":
 
@@ -299,14 +357,19 @@ if __name__ == "__main__":
 
     if args["--threads"]:
         threads = int(args["--threads"])
+    else:
+        threads = 1
 
     try:
         start_time = timer()
-        data = DataObj(vcf_f=vcf_f, bed_f=bed_f)
-        data.parse_vcf()
-        data.load_bed()
-        data.sample_variant_bed_intersect()
-        data.sample_count_states(max_pair_distance=max_pair_distance)
+
+        data = GenomeObj(vcf_f=vcf_f, bed_f=bed_f)
+        if bed_f:
+            data.load_bed()
+        else:
+            print("No bed file specified analysing all variants...")
+        data.initialise_chromosome_objs()
+        data.tally_chroms()
         data.write_tsv()
 
         print("[+] Total runtime: %.3fs" % (timer() - start_time))
