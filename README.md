@@ -1,4 +1,4 @@
-# heRho
+heRho
 =========
 heterozygosity-based estimator of Rho
 
