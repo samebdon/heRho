@@ -2,7 +2,7 @@ heRho
 =========
 heterozygosity-based estimator of Rho
 
-heRho estimates crossover rates, gene conversion rates, and the mean gene conversion tract length using heterozygosity data from single diploid genomes. More information about the method and implementation can be read on [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.11.09.467857v1.full.pdf).
+heRho estimates crossover rates, gene conversion rates, and the mean gene conversion tract length using distance-dependent heterozygosity data from single diploid genomes in a simple composite-likelihood scheme. More information about the method and implementation can be read on [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.11.09.467857v1.full.pdf).
 
 ## Dependencies (via [conda](https://conda.io/miniconda.html))
 -------
