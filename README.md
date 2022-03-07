@@ -23,7 +23,7 @@ Input: VCF file assuming one diploid per read group. Optional BED file delegatin
 
 Output: Data tsv compliant with step [1] (example at heRho/example_data.tsv)
 
-Usage
+Usage:
 
 ```
 heRho_tally_pairwise_counts_vcf.py
