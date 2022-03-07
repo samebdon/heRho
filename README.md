@@ -9,7 +9,7 @@ heRho estimates crossover rates, gene conversion rates, and the mean gene conver
 ```
 conda create -n herho && \
 conda activate herho && \
-conda install pandas numpy pybedtools tqdm docopt scikit-allel tabix ### Add jupyter + ML dependencies
+conda install pandas numpy pybedtools tqdm docopt scikit-allel tabix ### Add jupyter/msprime/ML dependencies
 ```
 
 # Workflow
