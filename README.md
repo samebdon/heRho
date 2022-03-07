@@ -13,7 +13,6 @@ conda install pandas numpy pybedtools tqdm docopt scikit-allel tabix ### Add jup
 ```
 
 # Workflow
--------
 
 ## [0] Preprocessing: tally pairwise variant configurations using variant data or simulations
 -------
