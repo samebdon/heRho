@@ -6,11 +6,11 @@ Usage:
 
 Options:
  -v, --vcf <FILE>                       VCF file
- -b, --bed <FILE>                       Bed file
- -d, --distance <INT>                   Max pairwise distance (default 1000)
- -t, --threads <INT>                    Thread limit (parallelised per chromosome, 1 by default)
- -s, --samples <STR>                    Comma separated list of samples to analyse (all by default)
- -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (all by default)
+ -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes)
+ -d, --distance <INT>                   Max pairwise distance (Default: 1000)
+ -t, --threads <INT>                    Thread limit (parallelised per chromosome, Default: 1)
+ -s, --samples <STR>                    Comma separated list of samples to analyse (Default: all samples)
+ -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (Default: All chromosomes)
  -f, --file_prefix <STR>                Optional file prefix
 """
 
@@ -124,7 +124,7 @@ class ChromObj(object):
     def __init__(
         self,
         chromosome_name=None,
-        vcf_f=None,
+        vcf_f=None, # can adjust to not store here
         n_intervals=None,
         read_groups=[],
         sample_obj_dict={},
@@ -153,9 +153,18 @@ class ChromObj(object):
         )
         # write test to check entries in sample list in vcf_dict["samples"]
         if sample_list:
-            self.read_groups = np.array(sample_list)
+            read_groups = []
+            for sample in sample_list:
+                if sample not in vcf_dict["samples"]:
+                    print("Sample %s not found in vcf file" % sample)
+                else:
+                    read_groups.append(sample)
+            #test works and duplicate for chroms
+            self.read_groups = np.array(read_groups)
+
         else:
             self.read_groups = vcf_dict["samples"]
+
         numalt_array = vcf_dict["variants/NUMALT"]
         is_SNP_array = vcf_dict["variants/is_snp"]
         mask_array = (numalt_array == 1) & (is_SNP_array == True)
