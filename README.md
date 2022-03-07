@@ -39,6 +39,8 @@ Options:
  -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (all by default)
  -f, --file_prefix <STR>                Optional file prefix
 
+Example command:
+python heRho_tally_pairwise_counts_vcf.py -v vcf_file.vcf.gz -b bed_file.bed -d 1000 -t 1 -s sample_1,sample2 -c chrom_1,chrom_2 -f tally_1
 ```
 
 B. Simulations - 
