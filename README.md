@@ -25,18 +25,18 @@ Output: Data tsv compliant with parameter estimation scripts (example at heRho/e
 Usage:
 
 ```
-heRho_tally_pairwise_counts_vcf.py
+heRho_pairwise_variant_tally
 
 Usage: 
  heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
 
 Options:
  -v, --vcf <FILE>                       VCF file
- -b, --bed <FILE>                       Bed file
- -d, --distance <INT>                   Max pairwise distance (default 1000)
- -t, --threads <INT>                    Thread limit (parallelised per chromosome, 1 by default)
- -s, --samples <STR>                    Comma separated list of samples to analyse (all by default)
- -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (all by default)
+ -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes)
+ -d, --distance <INT>                   Max pairwise distance (Default: 1000)
+ -t, --threads <INT>                    Thread limit (parallelised per chromosome, Default: 1)
+ -s, --samples <STR>                    Comma separated list of samples to analyse (Default: all samples)
+ -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (Default: All chromosomes)
  -f, --file_prefix <STR>                Optional file prefix
 
 Example command:
