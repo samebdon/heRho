@@ -1,5 +1,4 @@
 """heRho_pairwise_variant_tally
-Function as is for talling output from heRHo_variant_simulator.py
 
 Usage: 
  heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
