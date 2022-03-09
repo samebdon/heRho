@@ -329,7 +329,6 @@ class SampleObj(object):
         max_pair_distance=1000,
         chromosome_name=None,
     ):
-        print(self.snp_array)
         if interval:
             self.state_count_df_dict[interval_index] = state_counts(
                 hzg_sites=self.bed_variant_dict[interval_index],
