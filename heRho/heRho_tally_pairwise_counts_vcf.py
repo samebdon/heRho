@@ -16,6 +16,8 @@ Options:
 # Example Command
 # python heRho_tally_pairwise_counts_vcf.py -v vcf_file.vcf.gz -b bed_file.bed -d 1000 -t 1 -s sample_1,sample2 -c chrom_1,chrom_2
 
+# CURRENTLY ONLY WORKING FOR ONE SAMPLE
+
 import pandas as pd
 import numpy as np
 import itertools
