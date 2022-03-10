@@ -357,6 +357,7 @@ class SampleObj(object):
     def variant_bed_intersect(self, bed_intervals=None):
 
         self.bed_variant_dict = {}
+        #print("Sample: %s, Heterozygosity: %s" % (self.name, int(len(snp_array))/int(snp_array[-1])))
         for interval_index, interval in enumerate(bed_intervals):
             mask_array = (self.snp_array >= interval.start) & (
                 self.snp_array < interval.end
