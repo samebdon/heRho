@@ -5,7 +5,7 @@ Usage:
 
 Options:
  -v, --vcf <FILE>                       VCF file
- -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes) ### NOT CURRENTLY WORKING
+ -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes)
  -d, --distance <INT>                   Max pairwise distance (Default: 1000)
  -t, --threads <INT>                    Thread limit (parallelised per chromosome, Default: 1)
  -s, --samples <STR>                    Comma separated list of samples to analyse (Default: all samples)
@@ -34,9 +34,9 @@ from collections import Counter
 # Provided sample/chromosome list tests
 # Figure out loading information with multiprocessing
 # Check for intron overlaps
-# Check tally is working with intron example
-# when pooling counts coming out the same for all individuals, figure out whats going wrong
-# add print statements to profile where they are converging
+# Seems right but low estimates of heterozygosity per interval, seems right over whole chr
+# check tallying right per interval, but seems like working per individual now
+
 
 class GenomeObj(object):
     def __init__(
@@ -201,7 +201,12 @@ class GenomeObj(object):
             else:
                 output_file_unpooled = "heRho_tally_per_chromosome.tsv"
 
-            self.genome_df.to_csv(output_file_unpooled, sep="\t", index=False)
+            self.genome_df.to_csv(
+                output_file_unpooled,
+                columns=["sample", "chromosome", "distance", "H0", "H1", "H2", "theta"],
+                sep="\t",
+                index=False,
+            )
             print("Written output to '%s'." % output_file_unpooled)
 
 
@@ -214,7 +219,7 @@ class ChromObj(object):
         read_groups=[],
         sample_obj_dict={},
         snps_in_bed_array=None,
-        df_dict={}
+        df_dict={},
     ):
         self.chromosome_name = chromosome_name
         self.vcf_f = vcf_f
@@ -222,7 +227,7 @@ class ChromObj(object):
         self.read_groups = read_groups
         self.sample_obj_dict = sample_obj_dict
         self.snps_in_bed_array = snps_in_bed_array
-        self.df_dict=df_dict
+        self.df_dict = df_dict
 
     def parse_vcf(self):
         if threads == 1:
@@ -285,13 +290,12 @@ class ChromObj(object):
             )
 
     def sample_count_states(self, all_bed_intervals=None, max_pair_distance=1000):
-        #somewhere here overwriting count states
+
         self.df_dict = {}
         for sample in self.read_groups:
             if threads == 1:
                 print("Tallying states in sample: %s" % sample)
 
-            #seems to work for whole chr, need to figure if it works with bed
             interval_dict = {}
             if bed_f:
                 chr_bed_intervals = filter_bed_generator(
@@ -302,7 +306,9 @@ class ChromObj(object):
                 for interval_index, interval in enumerate(chr_bed_intervals):
                     if interval.end - interval.start < max_pair_distance:
                         continue
-                    interval_dict[interval_index] = self.sample_obj_dict[sample].count_states(
+                    interval_dict[interval_index] = self.sample_obj_dict[
+                        sample
+                    ].count_states(
                         interval_index=interval_index,
                         interval=interval,
                         max_pair_distance=max_pair_distance,
@@ -315,8 +321,6 @@ class ChromObj(object):
                 )
 
             self.df_dict[sample] = concat_dfs_from_dict(dictionary=interval_dict)
-            print("self df dict %s" % sample)
-            print(self.df_dict[sample][["sample","H0","H1","H2"]])
 
     def concat_df(self):
 
@@ -335,7 +339,6 @@ class ChromObj(object):
         ]
         all_sample_count_df = pd.DataFrame(columns=columns).fillna(0)
         for sample in self.read_groups:
-            print(self.df_dict[sample][["sample","H0","H1","H2"]])
             all_sample_count_df = pd.concat([all_sample_count_df, self.df_dict[sample]])
 
         return all_sample_count_df
@@ -355,6 +358,8 @@ class SampleObj(object):
         self.state_count_df_dict = state_count_df_dict
 
     def variant_bed_intersect(self, bed_intervals=None):
+
+        self.bed_variant_dict = {}
         for interval_index, interval in enumerate(bed_intervals):
             mask_array = (self.snp_array >= interval.start) & (
                 self.snp_array < interval.end
@@ -376,18 +381,20 @@ class SampleObj(object):
                 hzg_sites=self.bed_variant_dict[interval_index],
                 interval_index=interval_index,
                 interval_name=interval.name,
-                interval_length=interval.end - interval.start,  # check off by 1
+                interval_start=interval.start,
+                interval_end=interval.end,
                 chromosome=interval.chrom,
                 max_pair_distance=max_pair_distance,
             )
         else:
             return state_counts(
-                name = self.name,
+                name=self.name,
                 hzg_sites=self.snp_array,
-                interval_length=self.snp_array[-1],
+                interval_end=self.snp_array[-1],
                 chromosome=chromosome_name,
                 max_pair_distance=max_pair_distance,
             )
+
 
 def concat_dfs_from_dict(dictionary=None):
     columns = [
@@ -403,54 +410,58 @@ def concat_dfs_from_dict(dictionary=None):
     ]
     concat_df = pd.DataFrame(columns=columns).fillna(0)
     for index in dictionary.keys():
-        concat_df = pd.concat(
-            [concat_df, dictionary[index]]
-        )
+        concat_df = pd.concat([concat_df, dictionary[index]])
 
     return concat_df
+
 
 def state_counts(
     name=None,
     hzg_sites=None,
     interval_index=0,
     interval_name="all_variants",
-    interval_length=None,
+    interval_end=None,
+    interval_start=1,
     chromosome=None,
     max_pair_distance=1000,
 ):
-    # Count h0, h1, and h2 given a window of known length and the positions of known variant sites
-    # maybe should split this up into smaller functions
-    pairwise_distances = range(1, max_pair_distance + 1)
-    # maximum number of comparisons per pairwise distance
-    last_positions = [interval_length - i for i in pairwise_distances]
 
-    # state_counts
+    interval_length = interval_end - interval_start
+    pairwise_distances = range(1, max_pair_distance + 1)
+    max_comparisons = [interval_length - i for i in pairwise_distances]
+
     h_2_counts = [0] * max_pair_distance
     hzg_pairwise_dict = count_distance(pos=hzg_sites, max_distance=max_pair_distance)
     for key, value in hzg_pairwise_dict.items():
         h_2_counts[key - 1] = value
 
-    # h_1_counts uncorrected for end overlap
-    h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
-    # calculate the number of out of bounds comparisons
-    correction = [
-        len(list(filter(lambda x: x <= i or x >= interval_length + 1 - i, hzg_sites)))
-        for i in pairwise_distances
-    ]
-    h_1_counts = [
-        h_1_counts_uncorrected[i - 1] - correction[i - 1] for i in pairwise_distances
-    ]
+    # correction takes longer but theres a slight overestimate with no correction thats worth the more smaller intervals there are
+    if bed_f:
+        h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
+        correction = [
+            len(
+                list(
+                    filter(
+                        lambda x: x <= interval_start + i or x >= interval_end + 1 - i,
+                        hzg_sites,
+                    )
+                )
+            )
+            for i in pairwise_distances
+        ]
+        h_1_counts = [
+            h_1_counts_uncorrected[i - 1] - correction[i - 1]
+            for i in pairwise_distances
+        ]
+
+    else:
+        h_1_counts = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
 
     # find h0 from remainder
     h_0_counts = [
-        last_positions[i - 1] - h_2_counts[i - 1] - h_1_counts[i - 1]
+        max_comparisons[i - 1] - h_2_counts[i - 1] - h_1_counts[i - 1]
         for i in pairwise_distances
     ]
-
-    #print(h_0_counts)
-    #print(h_1_counts)
-    #print(h_2_counts)
-
 
     columns = [
         "sample",
@@ -475,8 +486,6 @@ def state_counts(
     state_count_df["theta"] = calculate_theta(
         state_count_df["H0"], state_count_df["H1"], state_count_df["H2"]
     )
-    #print("state count df for %s" % name)
-    #print(state_count_df[["sample","H0","H1","H2"]])
     return state_count_df
 
 
@@ -564,7 +573,6 @@ if __name__ == "__main__":
         data.initialise_chromosome_objs()
         data.tally_chroms()
         if bed_f:
-            # could make output file for whole vcf match
             # tidy df function
             data.pool_counts_within_chromosomes(max_pair_distance=max_pair_distance)
         data.write_tsvs()
