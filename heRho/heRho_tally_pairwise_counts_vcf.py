@@ -34,9 +34,6 @@ from collections import Counter
 # Provided sample/chromosome list tests
 # Figure out loading information with multiprocessing
 # Check for intron overlaps
-# Seems right but low estimates of heterozygosity per interval, seems right over whole chr
-# check tallying right per interval, but seems like working per individual now
-
 
 class GenomeObj(object):
     def __init__(
@@ -457,7 +454,6 @@ def state_counts(
     else:
         h_1_counts = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
 
-    # find h0 from remainder
     h_0_counts = [
         max_comparisons[i - 1] - h_2_counts[i - 1] - h_1_counts[i - 1]
         for i in pairwise_distances
@@ -573,7 +569,6 @@ if __name__ == "__main__":
         data.initialise_chromosome_objs()
         data.tally_chroms()
         if bed_f:
-            # tidy df function
             data.pool_counts_within_chromosomes(max_pair_distance=max_pair_distance)
         data.write_tsvs()
 
