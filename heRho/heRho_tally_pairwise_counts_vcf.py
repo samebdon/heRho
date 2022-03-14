@@ -85,9 +85,9 @@ class GenomeObj(object):
         print("Tallying chromosomes...")
 
         columns = [
-            "sample",
+            "sample_name",
             "interval_index",
-            "name",
+            "interval_name",
             "chromosome",
             "distance",
             "H0",
@@ -128,7 +128,7 @@ class GenomeObj(object):
 
         print("Pooling intervals...")
         columns = [
-            "sample",
+            "sample_name",
             "chromosome",
             "distance",
             "H0",
@@ -143,11 +143,11 @@ class GenomeObj(object):
         for sample in self.sample_names:
             for chromosome in self.chromosome_names:
                 unpooled_df_subset = self.genome_df[
-                    (self.genome_df["sample"] == sample)
+                    (self.genome_df["sample_name"] == sample)
                     & (self.genome_df["chromosome"] == chromosome)
                 ]
                 pooled_df_subset = pd.DataFrame(columns=columns).fillna(0)
-                pooled_df_subset["sample"] = [sample] * max_pair_distance
+                pooled_df_subset["sample_name"] = [sample] * max_pair_distance
                 pooled_df_subset["chromosome"] = [chromosome] * max_pair_distance
                 pooled_df_subset["distance"] = distance_list
                 pooled_df_subset["H0"] = [
@@ -200,7 +200,7 @@ class GenomeObj(object):
 
             self.genome_df.to_csv(
                 output_file_unpooled,
-                columns=["sample", "chromosome", "distance", "H0", "H1", "H2", "theta"],
+                columns=["sample_name", "chromosome", "distance", "H0", "H1", "H2", "theta"],
                 sep="\t",
                 index=False,
             )
@@ -324,9 +324,9 @@ class ChromObj(object):
         if threads == 1:
             print("Concatenating dataframes...")
         columns = [
-            "sample",
+            "sample_name",
             "interval_index",
-            "name",
+            "interval_name",
             "chromosome",
             "distance",
             "H0",
@@ -396,9 +396,9 @@ class SampleObj(object):
 
 def concat_dfs_from_dict(dictionary=None):
     columns = [
-        "sample",
+        "sample_name",
         "interval_index",
-        "name",
+        "interval_name",
         "chromosome",
         "distance",
         "H0",
@@ -461,9 +461,9 @@ def state_counts(
     ]
 
     columns = [
-        "sample",
+        "sample_name",
         "interval_index",
-        "name",
+        "interval_name",
         "chromosome",
         "distance",
         "H0",
@@ -472,9 +472,9 @@ def state_counts(
         "theta",
     ]
     state_count_df = pd.DataFrame(index=pairwise_distances, columns=columns).fillna(0)
-    state_count_df["sample"] = [name] * max_pair_distance
+    state_count_df["sample_name"] = [name] * max_pair_distance
     state_count_df["interval_index"] = [interval_index] * max_pair_distance
-    state_count_df["name"] = [interval_name] * max_pair_distance
+    state_count_df["interval_name"] = [interval_name] * max_pair_distance
     state_count_df["chromosome"] = [chromosome] * max_pair_distance
     state_count_df["distance"] = list(range(1, max_pair_distance + 1))
     state_count_df["H0"] = h_0_counts
