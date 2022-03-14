@@ -55,3 +55,18 @@ python heRho_tally_pairwise_counts_vcf.py -v vcf_file.vcf.gz -b bed_file.bed -d 
 To access the Jupyter interface activate your conda environment with Jupyter installed and in the heRho directory enter 'jupyter notebook' in your terminal.
 
 **B**. A stand-alone script to estimate recombination rates per chromosome can be run using  '[heRho/heRho_stand_alone.py](https://github.com/samebdon/heRho/blob/main/heRho/heRho_stand_alone.py)'.
+
+Usage:
+
+```
+heRho_stand_alone
+
+Usage: 
+ heRho_stand_alone.py -i <FILE> [-h]
+ 
+Options:
+ -i, --input_file <FILE>                Tally of pairwise site configurations (.tsv)
+
+# Example Command
+# python heRho_stand_alone.py -i example_data.tsv
+```
