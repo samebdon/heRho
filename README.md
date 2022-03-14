@@ -67,6 +67,6 @@ Usage:
 Options:
  -i, --input_file <FILE>                Tally of pairwise site configurations (.tsv)
 
-# Example Command
-# python heRho_stand_alone.py -i example_data.tsv
+Example Command
+python heRho_stand_alone.py -i example_data.tsv
 ```
