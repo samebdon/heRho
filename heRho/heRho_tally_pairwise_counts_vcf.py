@@ -34,6 +34,8 @@ from collections import Counter
 # Provided sample/chromosome list tests
 # Figure out loading information with multiprocessing
 # Check for intron overlaps
+# Add omit contigs by default
+# if d relative to chr length is large should do correction
 
 class GenomeObj(object):
     def __init__(
@@ -255,9 +257,15 @@ class ChromObj(object):
         else:
             self.read_groups = vcf_dict["samples"]
 
-        numalt_array = vcf_dict["variants/NUMALT"]
         is_SNP_array = vcf_dict["variants/is_snp"]
-        mask_array = (numalt_array == 1) & (is_SNP_array == True)
+
+        if isinstance(vcf_dict["variants/NUMALT"][0], int):
+            numalt_array = vcf_dict["variants/NUMALT"]
+            mask_array = (numalt_array == 1) & (is_SNP_array == True)
+        else:
+            print("NUMALT not in VCF file, assuming 1...")
+            mask_array = (is_SNP_array == True)
+
         snp_gts = vcf_dict["calldata/GT"][mask_array]
         snp_pos = vcf_dict["variants/POS"][mask_array]
         last_snp = snp_pos[-1]
