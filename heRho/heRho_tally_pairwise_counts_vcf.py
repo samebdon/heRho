@@ -37,6 +37,7 @@ from collections import Counter
 # Add omit contigs by default
 # if d relative to chr length is large should do correction
 
+
 class GenomeObj(object):
     def __init__(
         self,
@@ -202,7 +203,15 @@ class GenomeObj(object):
 
             self.genome_df.to_csv(
                 output_file_unpooled,
-                columns=["sample_name", "chromosome", "distance", "H0", "H1", "H2", "theta"],
+                columns=[
+                    "sample_name",
+                    "chromosome",
+                    "distance",
+                    "H0",
+                    "H1",
+                    "H2",
+                    "theta",
+                ],
                 sep="\t",
                 index=False,
             )
@@ -264,7 +273,7 @@ class ChromObj(object):
             mask_array = (numalt_array == 1) & (is_SNP_array == True)
         else:
             print("NUMALT not in VCF file, assuming 1...")
-            mask_array = (is_SNP_array == True)
+            mask_array = is_SNP_array == True
 
         snp_gts = vcf_dict["calldata/GT"][mask_array]
         snp_pos = vcf_dict["variants/POS"][mask_array]
@@ -365,7 +374,7 @@ class SampleObj(object):
     def variant_bed_intersect(self, bed_intervals=None):
 
         self.bed_variant_dict = {}
-        #print("Sample: %s, Heterozygosity: %s" % (self.name, int(len(snp_array))/int(snp_array[-1])))
+        # print("Sample: %s, Heterozygosity: %s" % (self.name, int(len(snp_array))/int(snp_array[-1])))
         for interval_index, interval in enumerate(bed_intervals):
             mask_array = (self.snp_array >= interval.start) & (
                 self.snp_array < interval.end
