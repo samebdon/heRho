@@ -54,11 +54,11 @@ Usage:
  
 Options:
  -c, --chromosome_number <INT>          Chromosome number
- -r, --crossover_rate <Int>		           Crossover rate
+ -r, --crossover_rate <Int>		Crossover rate
  -g, --gene_conversion_rate <FLOAT>     Gene conversion rate
- -L, --mean_tract_length <INT>		 	      Mean gene conversion tract length
- -s, --sequence_length <INT>			         Sequence length
- -t, --threads <INT>					               Thread limit
+ -L, --mean_tract_length <INT>			Mean gene conversion tract length
+ -s, --sequence_length <INT>			Sequence length
+ -t, --threads <INT>					Thread limit
  
 Example command:
 python heRho_variant_simulator.py -c chromosome_5 -r 0.02 -g 0.02 -L 150 -s 10000000 -t 1
