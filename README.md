@@ -45,6 +45,7 @@ python heRho_tally_pairwise_counts_vcf.py -v vcf_file.vcf.gz -b bed_file.bed -d 
 
 **B**. Simulations - 
 ```
+In prep...
 ```
 
 ## Estimating parameters
