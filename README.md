@@ -43,9 +43,25 @@ Example command:
 python heRho_tally_pairwise_counts_vcf.py -v vcf_file.vcf.gz -b bed_file.bed -d 1000 -t 1 -s sample_1,sample2 -c chrom_1,chrom_2 -f tally_1
 ```
 
-**B**. Simulations - 
+**B**. Simulations - '[heRho/heRho_variant_simulator.py](https://github.com/samebdon/heRho/blob/main/heRho/heRho_variant_simulator.py)'
+
+We have provided an example script demonstrating how to simulate data for use with heRho using [msprime](https://github.com/tskit-dev/msprime). Currently the number of replicates, seeds, theta, mu, and the number of samples are hard coded in the script, but it is written to be easily iterable over different recombination parameters. This script will write a folder of simulated vcf files per replicate, which are then usable following the instructions written above in workflow section A. For full instructions on using [msprime](https://github.com/tskit-dev/msprime) for simulating data please visit their documentation at https://tskit.dev/msprime/docs/stable/intro.html.
 ```
-In prep...
+heRho_variant_simulator
+
+Usage: 
+ heRho_variant_simulator.py -c <INT> -r <FLOAT> -g <FLOAT> -L <INT> -s <INT> -t <INT>
+ 
+Options:
+ -c, --chromosome_number <INT>          Chromosome number
+ -r, --crossover_rate <Int>		           Crossover rate
+ -g, --gene_conversion_rate <FLOAT>     Gene conversion rate
+ -L, --mean_tract_length <INT>		 	      Mean gene conversion tract length
+ -s, --sequence_length <INT>			         Sequence length
+ -t, --threads <INT>					               Thread limit
+ 
+Example command:
+python heRho_variant_simulator.py -c chromosome_5 -r 0.02 -g 0.02 -L 150 -s 10000000 -t 1
 ```
 
 ## Estimating parameters
