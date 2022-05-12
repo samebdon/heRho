@@ -45,7 +45,7 @@ python heRho_tally_pairwise_counts_vcf.py -v vcf_file.vcf.gz -b bed_file.bed -d 
 
 **B**. Simulations - '[heRho/heRho_variant_simulator.py](https://github.com/samebdon/heRho/blob/main/heRho/heRho_variant_simulator.py)'
 
-We have provided an example script demonstrating how to simulate data for use with heRho using [msprime](https://github.com/tskit-dev/msprime). Currently the number of replicates, seeds, theta, mu, and the number of samples are hard coded in the script, but it is written to be easily iterable over different recombination parameters. This script will write a folder of simulated vcf files per replicate, which are then usable following the instructions written above in workflow section A. For full instructions on using [msprime](https://github.com/tskit-dev/msprime) for simulating data please visit their documentation at https://tskit.dev/msprime/docs/stable/intro.html.
+We have provided an example script demonstrating how to simulate data for use with heRho using [msprime](https://github.com/tskit-dev/msprime). The number of replicates, seeds, theta, mu, and the number of samples are set within the script, and it is written to be easily iterable by providing arguments over different recombination parameters. This script will write a folder of simulated vcf files per replicate, which are then usable following the instructions written above in workflow section A. For full instructions on using [msprime](https://github.com/tskit-dev/msprime) for simulating data please visit their documentation at https://tskit.dev/msprime/docs/stable/intro.html.
 ```
 heRho_variant_simulator
 
