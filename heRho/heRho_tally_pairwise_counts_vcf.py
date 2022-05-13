@@ -1,4 +1,4 @@
-"""heRho_pairwise_variant_tally
+"""heRho_tally_pairwise_counts_vcf
 
 Usage: 
  heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
