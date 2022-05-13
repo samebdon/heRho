@@ -25,10 +25,10 @@ Output: Data tsv compliant with parameter estimation scripts (example at heRho/e
 Usage:
 
 ```
-heRho_pairwise_variant_tally
+heRho_tally_pairwise_counts_vcf
 
 Usage: 
- heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
+heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
 
 Options:
  -v, --vcf <FILE>                       VCF file
@@ -50,7 +50,7 @@ We have provided an example script demonstrating how to simulate data for use wi
 heRho_variant_simulator
 
 Usage: 
- heRho_variant_simulator.py -c <INT> -r <FLOAT> -g <FLOAT> -L <INT> -s <INT> -t <INT>
+heRho_variant_simulator.py -c <INT> -r <FLOAT> -g <FLOAT> -L <INT> -s <INT> -t <INT>
  
 Options:
  -c, --chromosome_number <INT>                       Chromosome number
@@ -79,7 +79,7 @@ Usage:
 heRho_stand_alone
 
 Usage: 
- heRho_stand_alone.py -i <FILE> [-h]
+heRho_stand_alone.py -i <FILE> [-h]
  
 Options:
  -i, --input_file <FILE>                Tally of pairwise site configurations (.tsv)
