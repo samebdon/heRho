@@ -33,7 +33,7 @@ heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s 
 Options:
  -v, --vcf <FILE>                       VCF file
  -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes)
- -d, --distance <INT>                   Max pairwise distance (Default: 1000)
+ -d, --distance <INT>                   Max pairwise distance (set to << chromosome length if not using bed files, Default: 1000)
  -t, --threads <INT>                    Thread limit (parallelised per chromosome, Default: 1)
  -s, --samples <STR>                    Comma separated list of samples to analyse (Default: all samples)
  -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (Default: all chromosomes)
