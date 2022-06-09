@@ -318,8 +318,8 @@ class ChromObj(object):
                 )
 
                 for interval_index, interval in enumerate(chr_bed_intervals):
-                    if interval.end - interval.start < max_pair_distance:
-                        continue
+                    #if interval.end - interval.start < max_pair_distance:
+                    #    continue
                     interval_dict[interval_index] = self.sample_obj_dict[
                         sample
                     ].count_states(
@@ -442,6 +442,10 @@ def state_counts(
 ):
 
     interval_length = interval_end - interval_start
+
+    if interval_length < (max_pair_distance+1):
+        max_pair_distance = interval_length-1
+
     pairwise_distances = range(1, max_pair_distance + 1)
     max_comparisons = [interval_length - i for i in pairwise_distances]
 
