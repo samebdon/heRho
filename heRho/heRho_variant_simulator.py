@@ -107,6 +107,8 @@ if args["--gene_conversion_rate"]:
     gene_conversion_rate = args["--gene_conversion_rate"]
     mean_tract_length = args["--mean_tract_length"]
     gbp = float(gene_conversion_rate) / (4 * ne)
+else:
+    gene_conversion = False
 
 sequence_length = args["--sequence_length"]
 threads = int(args["--threads"])
