@@ -9,7 +9,7 @@ heRho estimates crossover rates, gene conversion rates, and the mean gene conver
 ```
 mamba create -n herho && \
 mamba activate herho && \
-mamba install pandas numpy pybedtools tqdm docopt scikit-allel tabix nlopt matplotlib # math multiprocessing
+mamba install pandas=2.0.3 numpy pybedtools tqdm docopt scikit-allel tabix nlopt matplotlib # math multiprocessing
 ```
 
 # Workflow
