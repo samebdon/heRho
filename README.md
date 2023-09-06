@@ -4,12 +4,12 @@ heterozygosity-based estimator of Rho
 
 heRho estimates crossover rates, gene conversion rates, and the mean gene conversion tract length using distance-dependent heterozygosity data from single diploid genomes in a simple composite-likelihood scheme. heRho can be run either using variant data from real genomes or via simulations using [msprime](https://github.com/tskit-dev/msprime). More information about the method and implementation can be read at [Genetics](https://academic.oup.com/genetics/advance-article/doi/10.1093/genetics/iyac100/6623412).
 
-## Dependencies (via [conda](https://conda.io/miniconda.html))
+## Dependencies (via [mamba](https://mamba.readthedocs.io/en/latest/))
 -------
 ```
-conda create -n herho && \
-conda activate herho && \
-conda install pandas numpy pybedtools tqdm docopt scikit-allel tabix nlopt matplotlib # math multiprocessing
+mamba create -n herho && \
+mamba activate herho && \
+mamba install pandas numpy pybedtools tqdm docopt scikit-allel tabix nlopt matplotlib # math multiprocessing
 ```
 
 # Workflow
