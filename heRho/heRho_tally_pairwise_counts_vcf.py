@@ -49,6 +49,7 @@ class GenomeObj(object):
         chrom_obj_dict={},
         genome_df=None,
         pooled_genome_df=None,
+        max_pair_distance=None
     ):
         self.vcf_f = vcf_f
         self.bed_f = bed_f
@@ -58,6 +59,7 @@ class GenomeObj(object):
         self.chrom_obj_dict = chrom_obj_dict
         self.genome_df = genome_df
         self.pooled_genome_df = pooled_genome_df
+        self.max_pair_distance = max_pair_distance
 
     def load_bed(self):
         print("Loading bed file...")
@@ -78,6 +80,8 @@ class GenomeObj(object):
         else:
             self.chromosome_names = np.unique(vcf_dict["variants/CHROM"])
 
+        self.max_pair_distance = max_pair_distance
+
         self.chrom_obj_dict = {}
         for chromosome in self.chromosome_names:
             self.chrom_obj_dict[chromosome] = ChromObj(
@@ -85,6 +89,7 @@ class GenomeObj(object):
             )
 
     def tally_chroms(self):
+        global threads
         print("Tallying chromosomes...")
 
         columns = [
@@ -104,14 +109,14 @@ class GenomeObj(object):
         replicates = self.chrom_obj_dict.keys()
         with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
             results = executor.map(self.tally_chroms_worker, replicates)
-
         for chrom_df in results:
             self.genome_df = pd.concat([self.genome_df, chrom_df])
 
     def tally_chroms_worker(self, chromosome=None):
+        global max_pair_distance
         print("Tallying chromosome '%s'..." % chromosome)
-        self.chrom_obj_dict[chromosome].parse_vcf()
-        if bed_f:
+        self.chrom_obj_dict[chromosome].parse_vcf(self.sample_names)
+        if self.bed_f:
             self.chrom_obj_dict[chromosome].get_n_chr_bed_intervals(
                 all_bed_intervals=self.all_bed_intervals
             )
@@ -120,7 +125,7 @@ class GenomeObj(object):
             )
         self.chrom_obj_dict[chromosome].sample_count_states(
             all_bed_intervals=self.all_bed_intervals,
-            max_pair_distance=max_pair_distance,
+            max_pair_distance=self.max_pair_distance,
         )
         chrom_df = self.chrom_obj_dict[chromosome].concat_df()
         print("Finished tallying '%s'." % chromosome)
@@ -181,7 +186,7 @@ class GenomeObj(object):
                 )
 
     def write_tsvs(self):
-        if bed_f:
+        if self.bed_f:
             if prefix:
                 output_file_unpooled = prefix + ".heRho_tally_per_interval.tsv"
                 output_file_pooled = prefix + ".heRho_tally_per_chromosome.tsv"
@@ -237,9 +242,7 @@ class ChromObj(object):
         self.snps_in_bed_array = snps_in_bed_array
         self.df_dict = df_dict
 
-    def parse_vcf(self):
-        if threads == 1:
-            print("Parsing variants from VCF file...")
+    def parse_vcf(self, sample_list):
         query_fields = [
             "samples",
             "calldata/GT",
@@ -253,18 +256,8 @@ class ChromObj(object):
         )
         # write test to check entries in sample list in vcf_dict["samples"]
         # move to genome class for loading
-        if sample_list:
-            read_groups = []
-            for sample in sample_list:
-                if sample not in vcf_dict["samples"]:
-                    print("Sample %s not found in vcf file" % sample)
-                else:
-                    read_groups.append(sample)
-            # test works and duplicate for chroms
-            self.read_groups = np.array(read_groups)
 
-        else:
-            self.read_groups = vcf_dict["samples"]
+        self.read_groups = np.array(sample_list)
 
         is_SNP_array = vcf_dict["variants/is_snp"]
 
@@ -293,8 +286,6 @@ class ChromObj(object):
 
     def sample_variant_bed_intersect(self, all_bed_intervals=None):
         sample_obj_dict = {}
-        if threads == 1:
-            print("Intersecting variants with bed per sample...")
         for sample in self.read_groups:
             chr_bed_intervals = filter_bed_generator(
                 bed_intervals=all_bed_intervals, chromosome_name=self.chromosome_name
@@ -304,14 +295,10 @@ class ChromObj(object):
             )
 
     def sample_count_states(self, all_bed_intervals=None, max_pair_distance=1000):
-
         self.df_dict = {}
         for sample in self.read_groups:
-            if threads == 1:
-                print("Tallying states in sample: %s" % sample)
-
             interval_dict = {}
-            if bed_f:
+            if self.n_intervals:
                 chr_bed_intervals = filter_bed_generator(
                     bed_intervals=all_bed_intervals,
                     chromosome_name=self.chromosome_name,
@@ -337,9 +324,6 @@ class ChromObj(object):
             self.df_dict[sample] = concat_dfs_from_dict(dictionary=interval_dict)
 
     def concat_df(self):
-
-        if threads == 1:
-            print("Concatenating dataframes...")
         columns = [
             "sample_name",
             "interval_index",
@@ -455,7 +439,7 @@ def state_counts(
         h_2_counts[key - 1] = value
 
     # correction takes longer but theres a slight overestimate with no correction thats worth the more smaller intervals there are
-    if bed_f:
+    if interval_end:
         h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
         correction = [
             len(
