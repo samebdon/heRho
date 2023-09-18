@@ -151,6 +151,8 @@ if __name__ == "__main__":
         fileIn = args["--input_file"]
 
         df = pd.read_csv(fileIn, delimiter="\t")
+        df["sample_name"] = df["sample_name"].astype(str)
+        df["chromosome"] = df["chromosome"].astype(str)
 
         chrNames = df["chromosome"].unique()
         numChrs = len(chrNames)
