@@ -37,7 +37,6 @@ from collections import Counter
 # Add omit contigs by default
 # if d relative to chr length is large should do correction
 
-
 class GenomeObj(object):
     def __init__(
         self,
@@ -248,28 +247,18 @@ class ChromObj(object):
             "calldata/GT",
             "variants/CHROM",
             "variants/POS",
-            "variants/NUMALT",
-            "variants/is_snp",
         ]
         vcf_dict = allel.read_vcf(
             self.vcf_f, fields=query_fields, region=self.chromosome_name
         )
+
         # write test to check entries in sample list in vcf_dict["samples"]
         # move to genome class for loading
 
         self.read_groups = np.array(sample_list)
 
-        is_SNP_array = vcf_dict["variants/is_snp"]
-
-        if isinstance(vcf_dict["variants/NUMALT"][0], int):
-            numalt_array = vcf_dict["variants/NUMALT"]
-            mask_array = (numalt_array == 1) & (is_SNP_array == True)
-        else:
-            print("NUMALT not in VCF file, assuming 1...")
-            mask_array = is_SNP_array == True
-
-        snp_gts = vcf_dict["calldata/GT"][mask_array]
-        snp_pos = vcf_dict["variants/POS"][mask_array]
+        snp_gts = vcf_dict["calldata/GT"]
+        snp_pos = vcf_dict["variants/POS"]
         last_snp = snp_pos[-1]
         snp_ga = allel.GenotypeArray(snp_gts)
         for sample_index, sample in enumerate(self.read_groups):

@@ -18,7 +18,7 @@ mamba install pandas=2.0.3 numpy pybedtools tqdm docopt scikit-allel tabix nlopt
 -------
 **A**. Variant data - '[heRho/heRho_tally_pairwise_counts_vcf.py](https://github.com/samebdon/heRho/blob/main/heRho/heRho_tally_pairwise_counts_vcf.py)'
 
-Input: VCF file assuming one diploid per read group. Optional BED file delegating regions to tally.
+Input: VCF file (SNPs only)  assuming one diploid per read group. Optional BED file delegating regions to tally.
 
 Output: Data tsv compliant with parameter estimation scripts (example at heRho/example_data.tsv).
 
@@ -31,7 +31,7 @@ Usage:
 heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
 
 Options:
- -v, --vcf <FILE>                       VCF file
+ -v, --vcf <FILE>                       VCF file (SNPs only)
  -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes)
  -d, --distance <INT>                   Max pairwise distance (set to << chromosome length if not using bed files, Default: 1000)
  -t, --threads <INT>                    Thread limit (parallelised per chromosome, Default: 1)
