@@ -114,21 +114,20 @@ class GenomeObj(object):
     def tally_chroms_worker(self, chromosome=None):
         global max_pair_distance
         print("Tallying chromosome '%s'..." % chromosome)
-        try:
-            self.chrom_obj_dict[chromosome].parse_vcf(self.sample_names)
-            if self.bed_f:
-                self.chrom_obj_dict[chromosome].get_n_chr_bed_intervals(
-                    all_bed_intervals=self.all_bed_intervals
-                )
-                self.chrom_obj_dict[chromosome].sample_variant_bed_intersect(
-                    all_bed_intervals=self.all_bed_intervals
-                )
-            self.chrom_obj_dict[chromosome].sample_count_states(
-                all_bed_intervals=self.all_bed_intervals,
-                max_pair_distance=self.max_pair_distance,
+        self.chrom_obj_dict[chromosome].parse_vcf(self.sample_names)
+        if self.bed_f:
+            self.chrom_obj_dict[chromosome].get_n_chr_bed_intervals(
+                all_bed_intervals=self.all_bed_intervals
             )
-            chrom_df = self.chrom_obj_dict[chromosome].concat_df()
-            print("Finished tallying '%s'." % chromosome)
+            self.chrom_obj_dict[chromosome].sample_variant_bed_intersect(
+                all_bed_intervals=self.all_bed_intervals
+            )
+        self.chrom_obj_dict[chromosome].sample_count_states(
+            all_bed_intervals=self.all_bed_intervals,
+            max_pair_distance=self.max_pair_distance,
+        )
+        chrom_df = self.chrom_obj_dict[chromosome].concat_df()
+        print("Finished tallying '%s'." % chromosome)
         return chrom_df
 
     def pool_counts_within_chromosomes(self, max_pair_distance=1000):
