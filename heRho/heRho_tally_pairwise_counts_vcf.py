@@ -114,20 +114,21 @@ class GenomeObj(object):
     def tally_chroms_worker(self, chromosome=None):
         global max_pair_distance
         print("Tallying chromosome '%s'..." % chromosome)
-        self.chrom_obj_dict[chromosome].parse_vcf(self.sample_names)
-        if self.bed_f:
-            self.chrom_obj_dict[chromosome].get_n_chr_bed_intervals(
-                all_bed_intervals=self.all_bed_intervals
+        try:
+            self.chrom_obj_dict[chromosome].parse_vcf(self.sample_names)
+            if self.bed_f:
+                self.chrom_obj_dict[chromosome].get_n_chr_bed_intervals(
+                    all_bed_intervals=self.all_bed_intervals
+                )
+                self.chrom_obj_dict[chromosome].sample_variant_bed_intersect(
+                    all_bed_intervals=self.all_bed_intervals
+                )
+            self.chrom_obj_dict[chromosome].sample_count_states(
+                all_bed_intervals=self.all_bed_intervals,
+                max_pair_distance=self.max_pair_distance,
             )
-            self.chrom_obj_dict[chromosome].sample_variant_bed_intersect(
-                all_bed_intervals=self.all_bed_intervals
-            )
-        self.chrom_obj_dict[chromosome].sample_count_states(
-            all_bed_intervals=self.all_bed_intervals,
-            max_pair_distance=self.max_pair_distance,
-        )
-        chrom_df = self.chrom_obj_dict[chromosome].concat_df()
-        print("Finished tallying '%s'." % chromosome)
+            chrom_df = self.chrom_obj_dict[chromosome].concat_df()
+            print("Finished tallying '%s'." % chromosome)
         return chrom_df
 
     def pool_counts_within_chromosomes(self, max_pair_distance=1000):
@@ -367,6 +368,7 @@ class SampleObj(object):
             return state_counts(
                 name=self.name,
                 hzg_sites=self.bed_variant_dict[interval_index],
+                is_bed=True,
                 interval_index=interval_index,
                 interval_name=interval.name,
                 interval_start=interval.start,
@@ -378,6 +380,7 @@ class SampleObj(object):
             return state_counts(
                 name=self.name,
                 hzg_sites=self.snp_array,
+                is_bed=False,
                 interval_end=self.snp_array[-1],
                 chromosome=chromosome_name,
                 max_pair_distance=max_pair_distance,
@@ -406,6 +409,7 @@ def concat_dfs_from_dict(dictionary=None):
 def state_counts(
     name=None,
     hzg_sites=None,
+    is_bed=False,
     interval_index=0,
     interval_name="all_variants",
     interval_end=None,
@@ -428,7 +432,7 @@ def state_counts(
         h_2_counts[key - 1] = value
 
     # correction takes longer but theres a slight overestimate with no correction thats worth the more smaller intervals there are
-    if interval_end:
+    if is_bed:
         h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
         correction = [
             len(
