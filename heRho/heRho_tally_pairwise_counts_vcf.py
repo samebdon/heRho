@@ -31,11 +31,12 @@ from docopt import docopt
 from collections import Counter
 
 # To do
-# Provided sample/chromosome list tests
-# Figure out loading information with multiprocessing
 # Check for intron overlaps
-# Add omit contigs by default
 # if d relative to chr length is large should do correction
+
+# write each sample to file once done then concatenate at the end 
+#   rather than saving all sample dataframes in memory?
+# need to solve memory and speed problems both outside of the count and inside the count
 
 class GenomeObj(object):
     def __init__(
@@ -61,11 +62,9 @@ class GenomeObj(object):
         self.max_pair_distance = max_pair_distance
 
     def load_bed(self):
-        print("Loading bed file...")
         self.all_bed_intervals = pybedtools.BedTool(self.bed_f)
 
     def initialise_chromosome_objs(self):
-        print("Loading chromosomes from VCF file...")
         vcf_dict = allel.read_vcf(self.vcf_f, fields=["samples", "variants/CHROM"])
         # write test to check if each entry in chromosome_list is in variants/CHROM
         # could load sample and chromosome names in a different method to initialising chromosome objects
@@ -417,6 +416,8 @@ def state_counts(
     max_pair_distance=1000,
 ):
 
+### see where i can use better data structures
+
     interval_length = interval_end - interval_start
 
     if interval_length < (max_pair_distance+1):
@@ -433,17 +434,7 @@ def state_counts(
     # correction takes longer but theres a slight overestimate with no correction thats worth the more smaller intervals there are
     if is_bed:
         h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
-        correction = [
-            len(
-                list(
-                    filter(
-                        lambda x: x <= interval_start + i or x >= interval_end + 1 - i,
-                        hzg_sites,
-                    )
-                )
-            )
-            for i in pairwise_distances
-        ]
+        correction = [(get_correction_count(hzg_sites=hzg_sites, interval_start=interval_start, interval_end=interval_end, distance=i)) for i in pairwise_distances]
         h_1_counts = [
             h_1_counts_uncorrected[i - 1] - correction[i - 1]
             for i in pairwise_distances
@@ -515,6 +506,22 @@ def calculate_theta(H0, H1, H2):
     total = H0 + H1 + H2
     return (H1 / total / 2) + (H2 / total)
 
+def get_correction_count(hzg_sites, interval_start, interval_end, distance):
+
+    left_count = 0
+    right_count = 0
+    
+    for site in hzg_sites:
+        if site >= interval_start+distance:
+            break
+        left_count +=1
+
+    for site in hzg_sites[::-1]:
+        if site <= interval_end-distance:
+            break
+        right_count +=1
+        
+    return left_count+right_count
 
 if __name__ == "__main__":
 
