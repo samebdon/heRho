@@ -34,9 +34,13 @@ from collections import Counter
 # Check for intron overlaps
 # if d relative to chr length is large should do correction
 
-# write each sample to file once done then concatenate at the end 
+# write each sample to file once done then concatenate at the end
 #   rather than saving all sample dataframes in memory?
-# need to solve memory and speed problems both outside of the count and inside the count
+#fixed the correction function
+#Should probably not make a dataframe for each interval
+#Should change it for a sample to do all the counts, and then once the counts are finished make a dataframe
+#Then wont be storing dataframes for each interval, just a count per sample, hopefully fine without more writing
+#If still memory issues can write
 
 class GenomeObj(object):
     def __init__(
@@ -49,7 +53,7 @@ class GenomeObj(object):
         chrom_obj_dict={},
         genome_df=None,
         pooled_genome_df=None,
-        max_pair_distance=None
+        max_pair_distance=None,
     ):
         self.vcf_f = vcf_f
         self.bed_f = bed_f
@@ -293,7 +297,7 @@ class ChromObj(object):
                 )
 
                 for interval_index, interval in enumerate(chr_bed_intervals):
-                    #if interval.end - interval.start < max_pair_distance:
+                    # if interval.end - interval.start < max_pair_distance:
                     #    continue
                     interval_dict[interval_index] = self.sample_obj_dict[
                         sample
@@ -344,7 +348,6 @@ class SampleObj(object):
         self.state_count_df_dict = state_count_df_dict
 
     def variant_bed_intersect(self, bed_intervals=None):
-
         self.bed_variant_dict = {}
         # print("Sample: %s, Heterozygosity: %s" % (self.name, int(len(snp_array))/int(snp_array[-1])))
         for interval_index, interval in enumerate(bed_intervals):
@@ -361,7 +364,6 @@ class SampleObj(object):
         max_pair_distance=1000,
         chromosome_name=None,
     ):
-
         if interval:
             return state_counts(
                 name=self.name,
@@ -415,26 +417,37 @@ def state_counts(
     chromosome=None,
     max_pair_distance=1000,
 ):
-
-### see where i can use better data structures
+    ### see where i can use better data structures
+    ### Check if boolean masking actually beats the get correction count, should be able to check in the notebook
 
     interval_length = interval_end - interval_start
 
-    if interval_length < (max_pair_distance+1):
-        max_pair_distance = interval_length-1
+    if interval_length < (max_pair_distance + 1):
+        max_pair_distance = interval_length - 1
 
     pairwise_distances = range(1, max_pair_distance + 1)
     max_comparisons = [interval_length - i for i in pairwise_distances]
 
+    #mask the core and the shoulders for different counts? greater than or less than the shoulders is the core
+    #h_2_counts = np.zeros(max_pair_distance)
     h_2_counts = [0] * max_pair_distance
     hzg_pairwise_dict = count_distance(pos=hzg_sites, max_distance=max_pair_distance)
     for key, value in hzg_pairwise_dict.items():
         h_2_counts[key - 1] = value
 
-    # correction takes longer but theres a slight overestimate with no correction thats worth the more smaller intervals there are
     if is_bed:
         h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
-        correction = [(get_correction_count(hzg_sites=hzg_sites, interval_start=interval_start, interval_end=interval_end, distance=i)) for i in pairwise_distances]
+        correction = [
+            (
+                get_correction_count(
+                    hzg_sites=hzg_sites,
+                    interval_start=interval_start,
+                    interval_end=interval_end,
+                    distance=i,
+                )
+            )
+            for i in pairwise_distances
+        ]
         h_1_counts = [
             h_1_counts_uncorrected[i - 1] - correction[i - 1]
             for i in pairwise_distances
@@ -506,25 +519,25 @@ def calculate_theta(H0, H1, H2):
     total = H0 + H1 + H2
     return (H1 / total / 2) + (H2 / total)
 
-def get_correction_count(hzg_sites, interval_start, interval_end, distance):
 
+def get_correction_count(hzg_sites, interval_start, interval_end, distance):
     left_count = 0
     right_count = 0
-    
+
     for site in hzg_sites:
-        if site >= interval_start+distance:
+        if site >= interval_start + distance:
             break
-        left_count +=1
+        left_count += 1
 
     for site in hzg_sites[::-1]:
-        if site <= interval_end-distance:
+        if site <= interval_end - distance:
             break
-        right_count +=1
-        
-    return left_count+right_count
+        right_count += 1
+
+    return left_count + right_count
+
 
 if __name__ == "__main__":
-
     args = docopt(__doc__)
 
     vcf_f = args["--vcf"]
