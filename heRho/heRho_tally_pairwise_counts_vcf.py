@@ -1,16 +1,16 @@
 """heRho_tally_pairwise_counts_vcf
 
 Usage: 
- heRho_tally_pairwise_counts_vcf.py -v <FILE> [-h -b <FILE> -d <INT> -t <INT> -s <STR> -c <STR> -f <STR>]
+ heRho_tally_pairwise_counts_vcf.py -v <file> [-h -b <file> -d <int> -t <int> -s <str> -c <str> -f <str>]
 
 Options:
- -v, --vcf <FILE>                       VCF file
- -b, --bed <FILE>                       Bed file (Optional, Default: Whole chromosomes)
- -d, --distance <INT>                   Max pairwise distance (set to << chromosome length if not using bed files, Default: 1000)
- -t, --threads <INT>                    Thread limit (parallelised per chromosome, Default: 1)
- -s, --samples <STR>                    Comma separated list of samples to analyse (Default: all samples)
- -c, --chromosomes <STR>                Comma separated list of chromosomes to analyse (Default: All chromosomes)
- -f, --file_prefix <STR>                Optional file prefix
+ -v, --vcf <file>                       VCF file
+ -b, --bed <file>                       Bed file (Optional)
+ -d, --distance <int>                   Max pairwise distance (set to << chromosome length if not using bed files) [default: 1000]
+ -t, --threads <int>                    Thread limit (parallelised per chromosome) [default: 1]
+ -s, --samples <str>                    Comma separated subset of samples to analyse [default: all]
+ -c, --chromosomes <str>                Comma separated subset of chromosomes to analyse [default: all]
+ -f, --file_prefix <str>                Optional file prefix [default: output]
 
 """
 
@@ -25,22 +25,14 @@ import collections
 import sys, os
 import pybedtools
 import allel
-from tqdm import tqdm
 from timeit import default_timer as timer
 from docopt import docopt
 from collections import Counter
 
 # To do
-# Check for intron overlaps
-# if d relative to chr length is large should do correction
+# remove most if bed sections?
+# change parallelisation to sample level rather than chromosome level?
 
-# write each sample to file once done then concatenate at the end
-#   rather than saving all sample dataframes in memory?
-#fixed the correction function
-#Should probably not make a dataframe for each interval
-#Should change it for a sample to do all the counts, and then once the counts are finished make a dataframe
-#Then wont be storing dataframes for each interval, just a count per sample, hopefully fine without more writing
-#If still memory issues can write
 
 class GenomeObj(object):
     def __init__(
@@ -72,15 +64,15 @@ class GenomeObj(object):
         vcf_dict = allel.read_vcf(self.vcf_f, fields=["samples", "variants/CHROM"])
         # write test to check if each entry in chromosome_list is in variants/CHROM
         # could load sample and chromosome names in a different method to initialising chromosome objects
-        if sample_list:
-            self.sample_names = np.array(sample_list)
-        else:
+        if sample_list[0] == 'all':
             self.sample_names = np.unique(vcf_dict["samples"])
-
-        if chromosome_list:
-            self.chromosome_names = np.array(chromosome_list)
         else:
+            self.sample_names = np.array(sample_list)
+
+        if chromosome_list[0] == 'all':
             self.chromosome_names = np.unique(vcf_dict["variants/CHROM"])
+        else:
+            self.chromosome_names = np.array(chromosome_list)
 
         self.max_pair_distance = max_pair_distance
 
@@ -92,12 +84,9 @@ class GenomeObj(object):
 
     def tally_chroms(self):
         global threads
-        print("Tallying chromosomes...")
 
         columns = [
             "sample_name",
-            "interval_index",
-            "interval_name",
             "chromosome",
             "distance",
             "H0",
@@ -107,7 +96,6 @@ class GenomeObj(object):
         ]
         self.genome_df = pd.DataFrame(columns=columns).fillna(0)
 
-        # loading bars and print statements within concurrent futures dont work properly
         replicates = self.chrom_obj_dict.keys()
         with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
             results = executor.map(self.tally_chroms_worker, replicates)
@@ -129,14 +117,7 @@ class GenomeObj(object):
             all_bed_intervals=self.all_bed_intervals,
             max_pair_distance=self.max_pair_distance,
         )
-        chrom_df = self.chrom_obj_dict[chromosome].concat_df()
-        print("Finished tallying '%s'." % chromosome)
-        return chrom_df
 
-    def pool_counts_within_chromosomes(self, max_pair_distance=1000):
-        # would this be easier to do within chromosomes?
-
-        print("Pooling intervals...")
         columns = [
             "sample_name",
             "chromosome",
@@ -146,83 +127,16 @@ class GenomeObj(object):
             "H2",
             "theta",
         ]
-        self.pooled_genome_df = pd.DataFrame(columns=columns).fillna(0)
-
-        distance_list = list(range(1, max_pair_distance + 1))
-
-        for sample in self.sample_names:
-            for chromosome in self.chromosome_names:
-                unpooled_df_subset = self.genome_df[
-                    (self.genome_df["sample_name"] == sample)
-                    & (self.genome_df["chromosome"] == chromosome)
-                ]
-                pooled_df_subset = pd.DataFrame(columns=columns).fillna(0)
-                pooled_df_subset["sample_name"] = [sample] * max_pair_distance
-                pooled_df_subset["chromosome"] = [chromosome] * max_pair_distance
-                pooled_df_subset["distance"] = distance_list
-                pooled_df_subset["H0"] = [
-                    np.sum(
-                        unpooled_df_subset[unpooled_df_subset["distance"] == d]["H0"]
-                    )
-                    for d in distance_list
-                ]
-                pooled_df_subset["H1"] = [
-                    np.sum(
-                        unpooled_df_subset[unpooled_df_subset["distance"] == d]["H1"]
-                    )
-                    for d in distance_list
-                ]
-                pooled_df_subset["H2"] = [
-                    np.sum(
-                        unpooled_df_subset[unpooled_df_subset["distance"] == d]["H2"]
-                    )
-                    for d in distance_list
-                ]
-                pooled_df_subset["theta"] = calculate_theta(
-                    pooled_df_subset["H0"],
-                    pooled_df_subset["H1"],
-                    pooled_df_subset["H2"],
-                )
-                self.pooled_genome_df = pd.concat(
-                    [self.pooled_genome_df, pooled_df_subset]
-                )
+        chrom_df = pd.DataFrame(columns=columns).fillna(0)
+        for sample, sample_df in self.chrom_obj_dict[chromosome].df_dict.items():
+            chrom_df = pd.concat([chrom_df, sample_df])
+        print("Finished tallying '%s'." % chromosome)
+        return chrom_df
 
     def write_tsvs(self):
-        if self.bed_f:
-            if prefix:
-                output_file_unpooled = prefix + ".heRho_tally_per_interval.tsv"
-                output_file_pooled = prefix + ".heRho_tally_per_chromosome.tsv"
-            else:
-                output_file_unpooled = "heRho_tally_per_interval.tsv"
-                output_file_pooled = "heRho_tally_per_chromosome.tsv"
-            self.genome_df.to_csv(output_file_unpooled, sep="\t", index=False)
-            self.pooled_genome_df.to_csv(output_file_pooled, sep="\t", index=False)
-            print(
-                "Written output to '%s' and '%s'."
-                % (output_file_unpooled, output_file_pooled)
-            )
-
-        else:
-            if prefix:
-                output_file_unpooled = prefix + ".heRho_tally_per_chromosome.tsv"
-            else:
-                output_file_unpooled = "heRho_tally_per_chromosome.tsv"
-
-            self.genome_df.to_csv(
-                output_file_unpooled,
-                columns=[
-                    "sample_name",
-                    "chromosome",
-                    "distance",
-                    "H0",
-                    "H1",
-                    "H2",
-                    "theta",
-                ],
-                sep="\t",
-                index=False,
-            )
-            print("Written output to '%s'." % output_file_unpooled)
+        output_file = ".heRho_tally_per_chromosome.tsv"
+        self.genome_df.to_csv(prefix+output_file, sep="\t", index=False)
+        print(f"Written output to {prefix+output_file}.")
 
 
 class ChromObj(object):
@@ -257,6 +171,7 @@ class ChromObj(object):
 
         # write test to check entries in sample list in vcf_dict["samples"]
         # move to genome class for loading
+        # Should check chromosomes in vcf at some point
 
         self.read_groups = np.array(sample_list)
 
@@ -289,7 +204,9 @@ class ChromObj(object):
     def sample_count_states(self, all_bed_intervals=None, max_pair_distance=1000):
         self.df_dict = {}
         for sample in self.read_groups:
-            interval_dict = {}
+            h0_count_arr = np.zeros(max_pair_distance, dtype="uint64")
+            h1_count_arr = np.zeros(max_pair_distance, dtype="uint64")
+            h2_count_arr = np.zeros(max_pair_distance, dtype="uint64")
             if self.n_intervals:
                 chr_bed_intervals = filter_bed_generator(
                     bed_intervals=all_bed_intervals,
@@ -297,9 +214,7 @@ class ChromObj(object):
                 )
 
                 for interval_index, interval in enumerate(chr_bed_intervals):
-                    # if interval.end - interval.start < max_pair_distance:
-                    #    continue
-                    interval_dict[interval_index] = self.sample_obj_dict[
+                    h0_count, h1_count, h2_count = self.sample_obj_dict[
                         sample
                     ].count_states(
                         interval_index=interval_index,
@@ -307,31 +222,31 @@ class ChromObj(object):
                         max_pair_distance=max_pair_distance,
                     )
 
+                    for arr, count in zip(
+                        (h0_count_arr, h1_count_arr, h2_count_arr),
+                        (h0_count, h1_count, h2_count),
+                    ):
+                        arr += count
+
             else:
-                interval_dict[sample] = self.sample_obj_dict[sample].count_states(
+                h0_count, h1_count, h2_count = self.sample_obj_dict[
+                    sample
+                ].count_states(
                     max_pair_distance=max_pair_distance,
                     chromosome_name=self.chromosome_name,
                 )
 
-            self.df_dict[sample] = concat_dfs_from_dict(dictionary=interval_dict)
+                for arr, count in zip(
+                    (h0_count_arr, h1_count_arr, h2_count_arr),
+                    (h0_count, h1_count, h2_count),
+                ):
+                    arr += count
 
-    def concat_df(self):
-        columns = [
-            "sample_name",
-            "interval_index",
-            "interval_name",
-            "chromosome",
-            "distance",
-            "H0",
-            "H1",
-            "H2",
-            "theta",
-        ]
-        all_sample_count_df = pd.DataFrame(columns=columns).fillna(0)
-        for sample in self.read_groups:
-            all_sample_count_df = pd.concat([all_sample_count_df, self.df_dict[sample]])
-
-        return all_sample_count_df
+            self.df_dict[sample] = create_df(
+                arrays=(h0_count_arr, h1_count_arr, h2_count_arr),
+                name=sample,
+                chromosome=self.chromosome_name,
+            )
 
 
 class SampleObj(object):
@@ -387,11 +302,11 @@ class SampleObj(object):
             )
 
 
-def concat_dfs_from_dict(dictionary=None):
+def create_df(arrays, name, chromosome):
+    h0, h1, h2 = arrays
+
     columns = [
         "sample_name",
-        "interval_index",
-        "interval_name",
         "chromosome",
         "distance",
         "H0",
@@ -399,11 +314,20 @@ def concat_dfs_from_dict(dictionary=None):
         "H2",
         "theta",
     ]
-    concat_df = pd.DataFrame(columns=columns).fillna(0)
-    for index in dictionary.keys():
-        concat_df = pd.concat([concat_df, dictionary[index]])
 
-    return concat_df
+    max_distance = len(h0)
+
+    sample_count_df = pd.DataFrame(columns=columns).fillna(0)
+    sample_count_df["sample_name"] = [name] * max_distance
+    sample_count_df["chromosome"] = [chromosome] * max_distance
+    sample_count_df["distance"] = list(range(1, max_distance + 1))
+    sample_count_df["H0"] = h0
+    sample_count_df["H1"] = h1
+    sample_count_df["H2"] = h2
+    sample_count_df["theta"] = calculate_theta(
+        sample_count_df["H0"], sample_count_df["H1"], sample_count_df["H2"]
+    )
+    return sample_count_df
 
 
 def state_counts(
@@ -417,9 +341,6 @@ def state_counts(
     chromosome=None,
     max_pair_distance=1000,
 ):
-    ### see where i can use better data structures
-    ### Check if boolean masking actually beats the get correction count, should be able to check in the notebook
-
     interval_length = interval_end - interval_start
 
     if interval_length < (max_pair_distance + 1):
@@ -428,15 +349,14 @@ def state_counts(
     pairwise_distances = range(1, max_pair_distance + 1)
     max_comparisons = [interval_length - i for i in pairwise_distances]
 
-    #mask the core and the shoulders for different counts? greater than or less than the shoulders is the core
-    #h_2_counts = np.zeros(max_pair_distance)
-    h_2_counts = [0] * max_pair_distance
+    h_2_counts = np.zeros(max_pair_distance, dtype="uint64")
     hzg_pairwise_dict = count_distance(pos=hzg_sites, max_distance=max_pair_distance)
     for key, value in hzg_pairwise_dict.items():
         h_2_counts[key - 1] = value
 
-    if is_bed:
-        h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
+    h_1_counts_uncorrected = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
+
+    if max_pair_distance < 2500:
         correction = [
             (
                 get_correction_count(
@@ -448,46 +368,34 @@ def state_counts(
             )
             for i in pairwise_distances
         ]
-        h_1_counts = [
-            h_1_counts_uncorrected[i - 1] - correction[i - 1]
-            for i in pairwise_distances
-        ]
-
     else:
-        h_1_counts = [(2 * len(hzg_sites)) - (2 * i) for i in h_2_counts]
+        correction = np.array(
+            [
+                hzg_sites.shape[0]
+                - np.searchsorted(hzg_sites, interval_end - i, side="left")
+                + np.searchsorted(hzg_sites, interval_start + i, side="right")
+                for i in pairwise_distances
+            ]
+        )
 
-    h_0_counts = [
-        max_comparisons[i - 1] - h_2_counts[i - 1] - h_1_counts[i - 1]
-        for i in pairwise_distances
-    ]
-
-    columns = [
-        "sample_name",
-        "interval_index",
-        "interval_name",
-        "chromosome",
-        "distance",
-        "H0",
-        "H1",
-        "H2",
-        "theta",
-    ]
-    state_count_df = pd.DataFrame(index=pairwise_distances, columns=columns).fillna(0)
-    state_count_df["sample_name"] = [name] * max_pair_distance
-    state_count_df["interval_index"] = [interval_index] * max_pair_distance
-    state_count_df["interval_name"] = [interval_name] * max_pair_distance
-    state_count_df["chromosome"] = [chromosome] * max_pair_distance
-    state_count_df["distance"] = list(range(1, max_pair_distance + 1))
-    state_count_df["H0"] = h_0_counts
-    state_count_df["H1"] = h_1_counts
-    state_count_df["H2"] = h_2_counts
-    state_count_df["theta"] = calculate_theta(
-        state_count_df["H0"], state_count_df["H1"], state_count_df["H2"]
+    h_1_counts = np.array(
+        [h_1_counts_uncorrected[i - 1] - correction[i - 1] for i in pairwise_distances],
+        dtype="uint64",
     )
-    return state_count_df
+
+    h_0_counts = np.array(
+        [
+            max_comparisons[i - 1] - h_2_counts[i - 1] - h_1_counts[i - 1]
+            for i in pairwise_distances
+        ],
+        dtype="uint64",
+    )
+
+    return h_0_counts, h_1_counts, h_2_counts
 
 
 def count_distance(pos, max_distance=1000):
+    # thanks dom
     counter = collections.Counter()
     sites = np.array(pos)
     batches = np.split(sites, np.where(np.diff(sites) > max_distance + 1)[0] + 1)
@@ -503,11 +411,9 @@ def count_distance(pos, max_distance=1000):
                     pass
                 for product in itertools.product([pool.popleft()], pool):
                     counter[abs(product[1] - product[0])] += 1
-                    # counter[product] += 1
             while len(pool):
                 for product in itertools.product([pool.popleft()], pool):
                     counter[abs(product[1] - product[0])] += 1
-                    # counter[product] += 1
     return counter
 
 
@@ -539,42 +445,13 @@ def get_correction_count(hzg_sites, interval_start, interval_end, distance):
 
 if __name__ == "__main__":
     args = docopt(__doc__)
-
     vcf_f = args["--vcf"]
-
-    if args["--bed"]:
-        bed_f = args["--bed"]
-    else:
-        bed_f = None
-
-    if args["--distance"]:
-        max_pair_distance = int(args["--distance"])
-    else:
-        max_pair_distance = 1000
-
-    if args["--threads"]:
-        threads = int(args["--threads"])
-    else:
-        threads = 1
-
-    if args["--samples"]:
-        sample_list = str(args["--samples"]).replace(" ", "").split(",")
-        print("Analysing samples: ", ", ".join(sample_list))
-    else:
-        print("Analysing all samples...")
-        sample_list = None
-
-    if args["--chromosomes"]:
-        chromosome_list = str(args["--chromosomes"]).replace(" ", "").split(",")
-        print("Analysing chromosomes: ", ", ".join(chromosome_list))
-    else:
-        print("Analysing all chromosomes...")
-        chromosome_list = None
-
-    if args["--file_prefix"]:
-        prefix = str(args["--file_prefix"])
-    else:
-        prefix = None
+    bed_f = args["--bed"]
+    max_pair_distance = int(args["--distance"])
+    threads = int(args["--threads"])
+    sample_list = str(args["--samples"]).replace(" ", "").split(",")
+    chromosome_list = str(args["--chromosomes"]).replace(" ", "").split(",")
+    prefix = str(args["--file_prefix"])
 
     try:
         start_time = timer()
@@ -582,12 +459,8 @@ if __name__ == "__main__":
         data = GenomeObj(vcf_f=vcf_f, bed_f=bed_f)
         if bed_f:
             data.load_bed()
-        else:
-            print("No bed file specified analysing all variants...")
         data.initialise_chromosome_objs()
         data.tally_chroms()
-        if bed_f:
-            data.pool_counts_within_chromosomes(max_pair_distance=max_pair_distance)
         data.write_tsvs()
 
         print("[+] Total runtime: %.3fs" % (timer() - start_time))
