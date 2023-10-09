@@ -29,10 +29,8 @@ from timeit import default_timer as timer
 from docopt import docopt
 from collections import Counter
 
-# To do
 # remove most if bed sections?
 # change parallelisation to sample level rather than chromosome level?
-
 
 class GenomeObj(object):
     def __init__(
@@ -204,9 +202,9 @@ class ChromObj(object):
     def sample_count_states(self, all_bed_intervals=None, max_pair_distance=1000):
         self.df_dict = {}
         for sample in self.read_groups:
-            h0_count_arr = np.zeros(max_pair_distance, dtype="uint64")
-            h1_count_arr = np.zeros(max_pair_distance, dtype="uint64")
-            h2_count_arr = np.zeros(max_pair_distance, dtype="uint64")
+            h0_count_arr = np.zeros(max_pair_distance)
+            h1_count_arr = np.zeros(max_pair_distance)
+            h2_count_arr = np.zeros(max_pair_distance)
             if self.n_intervals:
                 chr_bed_intervals = filter_bed_generator(
                     bed_intervals=all_bed_intervals,
@@ -226,7 +224,7 @@ class ChromObj(object):
                         (h0_count_arr, h1_count_arr, h2_count_arr),
                         (h0_count, h1_count, h2_count),
                     ):
-                        arr += count
+                        arr[:count.shape[0]] += count
 
             else:
                 h0_count, h1_count, h2_count = self.sample_obj_dict[
@@ -240,7 +238,7 @@ class ChromObj(object):
                     (h0_count_arr, h1_count_arr, h2_count_arr),
                     (h0_count, h1_count, h2_count),
                 ):
-                    arr += count
+                    arr[:count.shape[0]] += count
 
             self.df_dict[sample] = create_df(
                 arrays=(h0_count_arr, h1_count_arr, h2_count_arr),
@@ -321,9 +319,9 @@ def create_df(arrays, name, chromosome):
     sample_count_df["sample_name"] = [name] * max_distance
     sample_count_df["chromosome"] = [chromosome] * max_distance
     sample_count_df["distance"] = list(range(1, max_distance + 1))
-    sample_count_df["H0"] = h0
-    sample_count_df["H1"] = h1
-    sample_count_df["H2"] = h2
+    sample_count_df["H0"] = h0.astype(int)
+    sample_count_df["H1"] = h1.astype(int)
+    sample_count_df["H2"] = h2.astype(int)
     sample_count_df["theta"] = calculate_theta(
         sample_count_df["H0"], sample_count_df["H1"], sample_count_df["H2"]
     )
@@ -341,6 +339,7 @@ def state_counts(
     chromosome=None,
     max_pair_distance=1000,
 ):
+    
     interval_length = interval_end - interval_start
 
     if interval_length < (max_pair_distance + 1):
@@ -349,7 +348,7 @@ def state_counts(
     pairwise_distances = range(1, max_pair_distance + 1)
     max_comparisons = [interval_length - i for i in pairwise_distances]
 
-    h_2_counts = np.zeros(max_pair_distance, dtype="uint64")
+    h_2_counts = np.zeros(max_pair_distance)
     hzg_pairwise_dict = count_distance(pos=hzg_sites, max_distance=max_pair_distance)
     for key, value in hzg_pairwise_dict.items():
         h_2_counts[key - 1] = value
@@ -380,7 +379,6 @@ def state_counts(
 
     h_1_counts = np.array(
         [h_1_counts_uncorrected[i - 1] - correction[i - 1] for i in pairwise_distances],
-        dtype="uint64",
     )
 
     h_0_counts = np.array(
@@ -388,7 +386,6 @@ def state_counts(
             max_comparisons[i - 1] - h_2_counts[i - 1] - h_1_counts[i - 1]
             for i in pairwise_distances
         ],
-        dtype="uint64",
     )
 
     return h_0_counts, h_1_counts, h_2_counts
