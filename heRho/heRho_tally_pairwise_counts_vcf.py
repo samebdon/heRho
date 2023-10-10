@@ -29,8 +29,13 @@ from timeit import default_timer as timer
 from docopt import docopt
 from collections import Counter
 
-# remove most if bed sections?
 # change parallelisation to sample level rather than chromosome level?
+# write unit tests
+# write input format tests
+# check samples and chromosomes in vcf
+# check chromosomes in bed?
+
+#could write an option to calcula
 
 class GenomeObj(object):
     def __init__(
@@ -60,17 +65,15 @@ class GenomeObj(object):
 
     def initialise_chromosome_objs(self):
         vcf_dict = allel.read_vcf(self.vcf_f, fields=["samples", "variants/CHROM"])
-        # write test to check if each entry in chromosome_list is in variants/CHROM
-        # could load sample and chromosome names in a different method to initialising chromosome objects
-        if sample_list[0] == 'all':
+        if samples == 'all':
             self.sample_names = np.unique(vcf_dict["samples"])
         else:
-            self.sample_names = np.array(sample_list)
+            self.sample_names = np.array(samples.replace(" ", "").split(","))
 
-        if chromosome_list[0] == 'all':
+        if chromosomes == 'all':
             self.chromosome_names = np.unique(vcf_dict["variants/CHROM"])
         else:
-            self.chromosome_names = np.array(chromosome_list)
+            self.chromosome_names = np.array(chromosomes.replace(" ", "").split(","))
 
         self.max_pair_distance = max_pair_distance
 
@@ -262,7 +265,7 @@ class SampleObj(object):
 
     def variant_bed_intersect(self, bed_intervals=None):
         self.bed_variant_dict = {}
-        # print("Sample: %s, Heterozygosity: %s" % (self.name, int(len(snp_array))/int(snp_array[-1])))
+        print("Sample: %s, Heterozygosity: %s" % (self.name, int(len(snp_array))/int(snp_array[-1])))
         for interval_index, interval in enumerate(bed_intervals):
             mask_array = (self.snp_array >= interval.start) & (
                 self.snp_array < interval.end
@@ -322,7 +325,7 @@ def create_df(arrays, name, chromosome):
     sample_count_df["H0"] = h0.astype(int)
     sample_count_df["H1"] = h1.astype(int)
     sample_count_df["H2"] = h2.astype(int)
-    sample_count_df["theta"] = calculate_theta(
+    sample_count_df["het"] = calculate_het(
         sample_count_df["H0"], sample_count_df["H1"], sample_count_df["H2"]
     )
     return sample_count_df
@@ -418,7 +421,7 @@ def filter_bed_generator(bed_intervals=None, chromosome_name=None):
     return bed_intervals.filter(lambda b: b.chrom == chromosome_name)
 
 
-def calculate_theta(H0, H1, H2):
+def calculate_het(H0, H1, H2):
     total = H0 + H1 + H2
     return (H1 / total / 2) + (H2 / total)
 
@@ -446,8 +449,8 @@ if __name__ == "__main__":
     bed_f = args["--bed"]
     max_pair_distance = int(args["--distance"])
     threads = int(args["--threads"])
-    sample_list = str(args["--samples"]).replace(" ", "").split(",")
-    chromosome_list = str(args["--chromosomes"]).replace(" ", "").split(",")
+    samples = str(args["--samples"])
+    chromosomes = str(args["--chromosomes"])
     prefix = str(args["--file_prefix"])
 
     try:
