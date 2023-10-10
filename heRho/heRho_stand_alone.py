@@ -25,10 +25,10 @@ import sys
 
 
 def combine_chr_across_individuals(thisDF):
-    test = thisDF[['distance','H0','H1','H2','theta']].copy()
+    test = thisDF[['distance','H0','H1','H2','het']].copy()
     numSamples = len(thisDF['sample_name'].unique())
     test = test.groupby(['distance'],as_index=False).sum()
-    test['theta'] = test['theta']/numSamples
+    test['het'] = test['het']/numSamples
     test = test.to_numpy()
     return(test)
 
