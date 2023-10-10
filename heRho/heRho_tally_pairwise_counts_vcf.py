@@ -93,7 +93,7 @@ class GenomeObj(object):
             "H0",
             "H1",
             "H2",
-            "theta",
+            "het",
         ]
         self.genome_df = pd.DataFrame(columns=columns).fillna(0)
 
@@ -126,7 +126,7 @@ class GenomeObj(object):
             "H0",
             "H1",
             "H2",
-            "theta",
+            "het",
         ]
         chrom_df = pd.DataFrame(columns=columns).fillna(0)
         for sample, sample_df in self.chrom_obj_dict[chromosome].df_dict.items():
@@ -313,7 +313,7 @@ def create_df(arrays, name, chromosome):
         "H0",
         "H1",
         "H2",
-        "theta",
+        "het",
     ]
 
     max_distance = len(h0)
